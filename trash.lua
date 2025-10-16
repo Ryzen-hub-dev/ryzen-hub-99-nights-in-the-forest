@@ -2,71 +2,30 @@
 -- Independent Version - No Rayfield Dependency
 -- Date: October 16, 2025
 
+-- Ryzen Hub : 99 Night In The Forset - Debug Version
 local Players = game:GetService("Players")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
-local TweenService = game:GetService("TweenService")
-local VirtualInputManager = game:GetService("VirtualInputManager")
 local LocalPlayer = Players.LocalPlayer
-local camera = workspace.CurrentCamera
 local playerGui = LocalPlayer:WaitForChild("PlayerGui")
 
--- Variables
-local teleportTargets = {
-    "Alien", "Alien Chest", "Alien Shelf", "Alpha Wolf", "Alpha Wolf Pelt", "Anvil Base", "Apple", "Bandage", "Bear", "Berry",
-    "Bolt", "Broken Fan", "Broken Microwave", "Bunny", "Bunny Foot", "Cake", "Carrot", "Chair Set", "Chest", "Chilli",
-    "Coal", "Coin Stack", "Crossbow Cultist", "Cultist", "Cultist Gem", "Deer", "Fuel Canister", "Giant Sack", "Good Axe", "Iron Body",
-    "Item Chest", "Item Chest2", "Item Chest3", "Item Chest4", "Item Chest6", "Laser Fence Blueprint", "Laser Sword", "Leather Body", "Log", "Lost Child",
-    "Lost Child2", "Lost Child3", "Lost Child4", "Medkit", "Meat? Sandwich", "Morsel", "Old Car Engine", "Old Flashlight", "Old Radio", "Oil Barrel",
-    "Raygun", "Revolver", "Revolver Ammo", "Rifle", "Rifle Ammo", "Riot Shield", "Sapling", "Seed Box", "Sheet Metal", "Spear",
-    "Steak", "Stronghold Diamond Chest", "Tyre", "UFO Component", "UFO Junk", "Washing Machine", "Wolf", "Wolf Corpse", "Wolf Pelt"
-}
-local AimbotTargets = {"Alien", "Alpha Wolf", "Wolf", "Crossbow Cultist", "Cultist", "Bunny", "Bear", "Polar Bear"}
-local espEnabled = false
-local npcESPEnabled = false
-local ignoreDistanceFrom = Vector3.new(0, 0, 0)
-local minDistance = 50
-local AutoTreeFarmEnabled = false
-local AimbotEnabled = false
-local FOVRadius = 100
-local flying = false
-local flyConnection = nil
-local speed = 60
-
--- Custom Wind-Style UI Setup
 local screenGui = Instance.new("ScreenGui")
 screenGui.Name = "RyzenHubUI"
 screenGui.Parent = playerGui
-screenGui.ResetOnSpawn = false
 
 local mainFrame = Instance.new("Frame")
-mainFrame.Name = "MainFrame"
-mainFrame.Size = UDim2.new(0, 450, 0, 550)
-mainFrame.Position = UDim2.new(0.5, -225, 0.5, -275)
+mainFrame.Size = UDim2.new(0, 400, 0, 300)
+mainFrame.Position = UDim2.new(0.5, -200, 0.5, -150)
 mainFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
 mainFrame.BackgroundTransparency = 0.1
 mainFrame.BorderSizePixel = 0
 mainFrame.Visible = false
 mainFrame.Parent = screenGui
 
-local mainCorner = Instance.new("UICorner")
-mainCorner.CornerRadius = UDim.new(0, 12)
-mainCorner.Parent = mainFrame
-
-local mainStroke = Instance.new("UIStroke")
-mainStroke.Color = Color3.fromRGB(0, 255, 150)
-mainStroke.Thickness = 2
-mainStroke.Transparency = 0.5
-mainStroke.Parent = mainFrame
-
 local titleLabel = Instance.new("TextLabel")
 titleLabel.Size = UDim2.new(1, 0, 0, 50)
-titleLabel.Position = UDim2.new(0, 0, 0, 0)
-titleLabel.BackgroundTransparency = 1
 titleLabel.Text = "Ryzen Hub : 99 Night In The Forset"
 titleLabel.TextColor3 = Color3.fromRGB(255, 255, 255)
-titleLabel.TextScaled = true
-titleLabel.Font = Enum.Font.GothamBold
+titleLabel.BackgroundTransparency = 1
 titleLabel.Parent = mainFrame
 
 local closeButton = Instance.new("TextButton")
@@ -75,136 +34,21 @@ closeButton.Position = UDim2.new(1, -35, 0, 10)
 closeButton.BackgroundColor3 = Color3.fromRGB(255, 50, 50)
 closeButton.Text = "✕"
 closeButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-closeButton.TextScaled = true
-closeButton.Font = Enum.Font.Gotham
 closeButton.Parent = mainFrame
 
-local closeCorner = Instance.new("UICorner")
-closeCorner.CornerRadius = UDim.new(0, 6)
-closeCorner.Parent = closeButton
+closeButton.MouseButton1Click:Connect(function()
+    print("Closing UI")
+    mainFrame.Visible = false
+end)
 
-local scrollFrame = Instance.new("ScrollingFrame")
-scrollFrame.Size = UDim2.new(1, -20, 1, -80)
-scrollFrame.Position = UDim2.new(0, 10, 0, 60)
-scrollFrame.BackgroundTransparency = 1
-scrollFrame.BorderSizePixel = 0
-scrollFrame.ScrollBarThickness = 6
-scrollFrame.ScrollBarImageColor3 = Color3.fromRGB(0, 255, 150)
-scrollFrame.CanvasSize = UDim2.new(0, 0, 0, 1000)
-scrollFrame.Parent = mainFrame
+UserInputService.InputBegan:Connect(function(input)
+    if input.KeyCode == Enum.KeyCode.Insert then
+        print("Toggling UI")
+        mainFrame.Visible = not mainFrame.Visible
+    end
+end)
 
--- Home Section
-local homeSection = Instance.new("Frame")
-homeSection.Size = UDim2.new(1, -20, 0, 350)
-homeSection.Position = UDim2.new(0, 10, 0, 10)
-homeSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-homeSection.BackgroundTransparency = 0.2
-homeSection.Parent = scrollFrame
-
-local homeCorner = Instance.new("UICorner")
-homeCorner.CornerRadius = UDim.new(0, 8)
-homeCorner.Parent = homeSection
-
-local homeTitle = Instance.new("TextLabel")
-homeTitle.Size = UDim2.new(1, 0, 0, 30)
-homeTitle.Position = UDim2.new(0, 10, 0, 5)
-homeTitle.BackgroundTransparency = 1
-homeTitle.Text = "🏠 Home"
-homeTitle.TextColor3 = Color3.fromRGB(0, 255, 150)
-homeTitle.TextScaled = true
-homeTitle.Font = Enum.Font.GothamSemibold
-homeTitle.Parent = homeSection
-
-local btnTeleportCampfire = Instance.new("TextButton")
-btnTeleportCampfire.Size = UDim2.new(1, -20, 0, 35)
-btnTeleportCampfire.Position = UDim2.new(0, 10, 0, 40)
-btnTeleportCampfire.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-btnTeleportCampfire.Text = "Teleport to Campfire"
-btnTeleportCampfire.TextColor3 = Color3.fromRGB(255, 255, 255)
-btnTeleportCampfire.Font = Enum.Font.Gotham
-btnTeleportCampfire.Parent = homeSection
-
-local btnTeleportGrinder = Instance.new("TextButton")
-btnTeleportGrinder.Size = UDim2.new(1, -20, 0, 35)
-btnTeleportGrinder.Position = UDim2.new(0, 10, 0, 80)
-btnTeleportGrinder.BackgroundColor3 = Color3.fromRGB(40, 40, 45)
-btnTeleportGrinder.Text = "Teleport to Grinder"
-btnTeleportGrinder.TextColor3 = Color3.fromRGB(255, 255, 255)
-btnTeleportGrinder.Font = Enum.Font.Gotham
-btnTeleportGrinder.Parent = homeSection
-
-local toggleItemESP = Instance.new("TextButton")
-toggleItemESP.Size = UDim2.new(1, -20, 0, 35)
-toggleItemESP.Position = UDim2.new(0, 10, 0, 120)
-toggleItemESP.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-toggleItemESP.Text = "Item ESP: OFF"
-toggleItemESP.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleItemESP.Font = Enum.Font.Gotham
-toggleItemESP.Parent = homeSection
-
-local toggleNPESP = Instance.new("TextButton")
-toggleNPESP.Size = UDim2.new(1, -20, 0, 35)
-toggleNPESP.Position = UDim2.new(0, 10, 0, 160)
-toggleNPESP.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-toggleNPESP.Text = "NPC ESP: OFF"
-toggleNPESP.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleNPESP.Font = Enum.Font.Gotham
-toggleNPESP.Parent = homeSection
-
-local toggleAutoTree = Instance.new("TextButton")
-toggleAutoTree.Size = UDim2.new(1, -20, 0, 35)
-toggleAutoTree.Position = UDim2.new(0, 10, 0, 200)
-toggleAutoTree.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-toggleAutoTree.Text = "Auto Tree Farm: OFF"
-toggleAutoTree.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleAutoTree.Font = Enum.Font.Gotham
-toggleAutoTree.Parent = homeSection
-
-local toggleAimbot = Instance.new("TextButton")
-toggleAimbot.Size = UDim2.new(1, -20, 0, 35)
-toggleAimbot.Position = UDim2.new(0, 10, 0, 240)
-toggleAimbot.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-toggleAimbot.Text = "Aimbot: OFF"
-toggleAimbot.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleAimbot.Font = Enum.Font.Gotham
-toggleAimbot.Parent = homeSection
-
-local toggleFly = Instance.new("TextButton")
-toggleFly.Size = UDim2.new(1, -20, 0, 35)
-toggleFly.Position = UDim2.new(0, 10, 0, 280)
-toggleFly.BackgroundColor3 = Color3.fromRGB(100, 100, 100)
-toggleFly.Text = "Fly: OFF"
-toggleFly.TextColor3 = Color3.fromRGB(255, 255, 255)
-toggleFly.Font = Enum.Font.Gotham
-toggleFly.Parent = homeSection
-
--- Teleport Section
-local teleSection = Instance.new("Frame")
-teleSection.Size = UDim2.new(1, -20, 0, 600)
-teleSection.Position = UDim2.new(0, 10, 0, 370)
-teleSection.BackgroundColor3 = Color3.fromRGB(30, 30, 35)
-teleSection.BackgroundTransparency = 0.2
-teleSection.Parent = scrollFrame
-
-local teleCorner = Instance.new("UICorner")
-teleCorner.CornerRadius = UDim.new(0, 8)
-teleCorner.Parent = teleSection
-
-local teleTitle = Instance.new("TextLabel")
-teleTitle.Size = UDim2.new(1, 0, 0, 30)
-teleTitle.Position = UDim2.new(0, 10, 0, 5)
-teleTitle.BackgroundTransparency = 1
-teleTitle.Text = "🧲 Teleport"
-teleTitle.TextColor3 = Color3.fromRGB(0, 255, 150)
-teleTitle.TextScaled = true
-teleTitle.Font = Enum.Font.GothamSemibold
-teleTitle.Parent = teleSection
-
-local teleLayout = Instance.new("UIListLayout")
-teleLayout.FillDirection = Enum.FillDirection.Vertical
-teleLayout.Padding = UDim.new(0, 5)
-teleLayout.Parent = teleSection
-
+print("Ryzen Hub loaded. Press Insert to toggle UI.")
 -- Create Teleport Buttons
 for _, itemName in ipairs(teleportTargets) do
     local btn = Instance.new("TextButton")
