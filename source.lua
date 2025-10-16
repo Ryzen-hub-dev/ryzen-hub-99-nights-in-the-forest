@@ -1,7 +1,4 @@
---[[
-Ryzen Hub Interface
-by Jotoro
-]]
+
 if debugX then
 warn('Initialising Ryzen Hub')
 end
