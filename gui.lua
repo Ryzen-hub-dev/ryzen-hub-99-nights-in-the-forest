@@ -1,8 +1,3 @@
--- HI
--- Ryzen Hub UI Library
--- Version: Custom Ryzen Hub Edition
--- Ryzen Hub : 99 Night In The Forset
-
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local RunService = game:GetService("RunService")
