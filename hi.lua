@@ -1,13 +1,13 @@
--- Ultimate Optimized Ryzen Hub YBA Cheat Script
--- Version: v2.0.0 Ultimate (2025 Edition)
--- Features: Auto Level with Main/Side Quests, Auto Prestige 1-3 with Money Check & Auto Item Farm/Sell every 0.7s, Underground Noclip Pilot Farm with Auto Summon Stand, Long E/R/M1 Attacks, Anti-AFK, ESP for Items/Mobs/NPCs, Auto Stand Farm, Server Hop for Better Farms, Configurable Speeds, Error Handling, Smooth Tweens, Discord Webhook Notifications
--- Additions: ESP, Stand Farm, Server Hop, Webhooks for Logs, Better Quest Logic, Multiple Farm Areas
+-- Ultimate Optimized Ryzen Hub YBA Cheat Script with Anti-Detection
+-- Version: v3.0.0 Ultimate Secure (2025 Edition)
+-- Features: Auto Level with Main/Side Quests, Auto Prestige 1-3 with Money Check & Auto Item Farm/Sell every 0.7s + Random Delays, Underground Noclip Pilot Farm with Auto Summon Stand, Long E/R/M1 Attacks, Anti-AFK, ESP for Items/Mobs/NPCs (Toggleable, with Detection Bypass), Auto Stand Farm, Server Hop for Better Farms, Configurable Speeds, Error Handling, Smooth Tweens, Discord Webhook Notifications
+-- Anti-Detection: Random Delays, Humanized Movements (Random Jumps/Walks), Strike Monitoring (Stop if Detected), Code Obfuscation Elements, Metatable Hooks for Anti-Kick, Avoid Direct Remotes When Possible, Simulate Inputs
 
-local version = "v2.0.0 Ultimate"
+local version = "v3.0.0 Ultimate Secure"
 local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 WindUI:Popup({
-    Title = "Ryzen Hub Ultimate",
+    Title = "Ryzen Hub Ultimate Secure",
     Icon = "rbxassetid://84501312005643",
     Content = "Join our Discord for updates and support",
     Buttons = {
@@ -29,10 +29,10 @@ WindUI:Popup({
 })
 
 local Window = WindUI:CreateWindow({
-    Title = "Ryzen Hub Ultimate YBA",
+    Title = "Ryzen Hub Ultimate Secure YBA",
     Icon = "rbxassetid://84501312005643",
-    Author = "Ultimate Edition | " .. version,
-    Folder = "YBAUltimate",
+    Author = "Secure Edition | " .. version,
+    Folder = "YBAUltimateSecure",
     Size = UDim2.fromOffset(420, 320),
     Transparent = true,
     Theme = "Dark",
@@ -89,6 +89,7 @@ local autoStandFarm = false
 local autoSummonStand = true
 local espEnabled = false
 local serverHop = false
+local antiDetection = true  -- New: Toggle Anti-Detection Features
 local farmSpeed = 0.1
 local itemFarmDelay = 0.7
 local webhookUrl = ""
@@ -126,7 +127,7 @@ QuestTab:Toggle({
 
 QuestTab:Toggle({
     Title = "ESP (Items/Mobs/NPCs)",
-    Desc = "Enable ESP for visibility",
+    Desc = "Enable ESP for visibility (with bypass)",
     Callback = function(v) espEnabled = v end
 })
 
@@ -134,6 +135,13 @@ QuestTab:Toggle({
     Title = "Server Hop",
     Desc = "Hop servers for better farms",
     Callback = function(v) serverHop = v end
+})
+
+QuestTab:Toggle({
+    Title = "Anti-Detection",
+    Desc = "Enable random delays, human movements, strike monitoring",
+    Default = true,
+    Callback = function(v) antiDetection = v end
 })
 
 -- Config Tab
@@ -172,36 +180,54 @@ local Lighting = game:GetService("Lighting")
 local TweenService = game:GetService("TweenService")
 local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
+local UserInputService = game:GetService("UserInputService")
 
 -- Character
 local character = player.Character or player.CharacterAdded:Wait()
 player.CharacterAdded:Connect(function(newChar)
     character = newChar
-    wait(1)
+    wait(math.random(1, 3))  -- Random delay on respawn
     if autoSummonStand then summonStand() end
 end)
 
--- Noclip
+-- Anti-Detection: Metatable Hook for Anti-Kick (from references)
+local mt = getrawmetatable(game)
+local oldIndex = mt.__index
+setreadonly(mt, false)
+mt.__index = newcclosure(function(self, key)
+    if key == "Kick" then return nil end  -- Bypass kick
+    return oldIndex(self, key)
+end)
+setreadonly(mt, true)
+
+-- Noclip with Anti-Detection (Random Toggle)
 local noclip = false
 RunService.Stepped:Connect(function()
     if noclip then
         for _, part in pairs(character:GetDescendants()) do
             if part:IsA("BasePart") then part.CanCollide = false end
         end
+        if antiDetection and math.random(1, 50) == 1 then  -- Random human jump
+            character.Humanoid:ChangeState(Enum.HumanoidStateType.Jumping)
+        end
     end
 end)
 
--- Anti-AFK
+-- Anti-AFK Enhanced
 spawn(function()
     while true do
-        wait(30)
+        wait(math.random(30, 60))  -- Random anti-AFK interval
         VirtualInputManager:SendKeyEvent(true, "W", false, game)
-        wait(0.1)
+        wait(math.random(0.05, 0.15))
         VirtualInputManager:SendKeyEvent(false, "W", false, game)
     end
 end)
 
--- Positions (Updated for 2025 Map Changes)
+-- Positions (Updated for 2025 Map Changes, with Random Offsets for Anti-Detection)
+local function randomOffset(cf)
+    return cf * CFrame.new(math.random(-2, 2), math.random(-1, 1), math.random(-2, 2))
+end
+
 local npcPositions = {
     PrestigeMaster = CFrame.new(-237, 49, -112),
     ItemSeller = CFrame.new(-223, 49, -71),
@@ -234,10 +260,12 @@ local npcPositions = {
     }
 }
 
--- Get Stats
+-- Get Stats with Error Handling
 local function getStat(statName)
-    local statsFrame = player.PlayerGui.MainGui.StatsFrame
-    if statsFrame then
+    local success, statsFrame = pcall(function()
+        return player.PlayerGui.MainGui.StatsFrame
+    end)
+    if success and statsFrame then
         local label = statsFrame:FindFirstChild(statName)
         if label then return tonumber(label.Text:match("%d+")) or 0 end
     end
@@ -251,54 +279,74 @@ local getPrestige = function() return getStat("Prestige") end
 -- Send Webhook
 local function sendWebhook(message)
     if webhookUrl ~= "" then
-        local data = {
-            ["content"] = message
-        }
-        HttpService:PostAsync(webhookUrl, HttpService:JSONEncode(data))
+        local data = { ["content"] = message }
+        local success, err = pcall(function()
+            HttpService:PostAsync(webhookUrl, HttpService:JSONEncode(data))
+        end)
+        if not success then print("Webhook error: " .. err) end
     end
 end
 
--- Interact NPC with Tween
+-- Interact NPC with Tween and Random Offset
 local function interactNPC(pos)
-    local tweenInfo = TweenInfo.new(0.5, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+    pos = randomOffset(pos)  -- Anti-Detection Offset
+    local tweenInfo = TweenInfo.new(math.random(0.4, 0.6), Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
     local tween = TweenService:Create(character.HumanoidRootPart, tweenInfo, {CFrame = pos * CFrame.new(0, 3, -3)})
     tween:Play()
     tween.Completed:Wait()
+    wait(math.random(0.1, 0.3))  -- Random delay
     local prompt = Workspace:FindFirstChildOfClass("ProximityPrompt", true) or character:FindFirstChildOfClass("ProximityPrompt")
     if prompt then fireproximityprompt(prompt) end
     local interactRemote = ReplicatedStorage:FindFirstChild("Interact") or ReplicatedStorage.Remotes:FindFirstChild("Talk")
     if interactRemote then interactRemote:FireServer() end
-    wait(1)
+    wait(math.random(0.5, 1.5))
 end
 
--- Auto Item Farm Optimized with Multiple Areas
+-- Strike Monitoring (Anti-Detection: Stop if TP Strike Detected)
+local strikeDetected = false
+player.PlayerGui.ChildAdded:Connect(function(child)
+    if child.Name:match("Strike") or child.Text:match("TP STRIKED") then  -- From references
+        strikeDetected = true
+        autoLevel = false
+        autoItemFarm = false
+        autoPrestige = false
+        sendWebhook("TP Strike Detected! Stopping autos.")
+        WindUI:Notify({
+            Title = "Anti-Detection Alert",
+            Content = "TP Strike detected. Stopping features for safety.",
+            Duration = 10
+        })
+    end
+end)
+
+-- Auto Item Farm with Anti-Detection (Random Areas, Delays)
 local function farmAndSellItems()
-    while autoItemFarm do
+    while autoItemFarm and not strikeDetected do
         for _, area in ipairs(npcPositions.ItemSpawnAreas) do
-            character.HumanoidRootPart.CFrame = area
-            wait(0.15)
+            character.HumanoidRootPart.CFrame = randomOffset(area)
+            wait(math.random(0.1, 0.3))
             for _, item in ipairs(Workspace:GetDescendants()) do
-                if item:IsA("Part") or item:IsA("MeshPart") and item.Name:match("Arrow") or item.Name:match("Roka") or item.Name:match("Diamond") or item.Name:match("Coin") then
-                    character.HumanoidRootPart.CFrame = item.CFrame
-                    wait(0.05)
+                if (item:IsA("Part") or item:IsA("MeshPart")) and (item.Name:match("Arrow") or item.Name:match("Roka") or item.Name:match("Diamond") or item.Name:match("Coin")) then
+                    character.HumanoidRootPart.CFrame = randomOffset(item.CFrame)
+                    wait(math.random(0.05, 0.15))
                 end
             end
         end
-        wait(itemFarmDelay)
+        wait(itemFarmDelay + math.random(-0.2, 0.2))  -- Varied delay
         if getMoney() < 5000 then
             interactNPC(npcPositions.ItemSeller)
             local sellRemote = ReplicatedStorage.Remotes:FindFirstChild("Sell")
             if sellRemote then sellRemote:FireServer("All") end
             sendWebhook("Sold items for money!")
-            wait(0.5)
+            wait(math.random(0.5, 1))
         end
     end
 end
 
--- Auto Prestige Optimized
+-- Auto Prestige with Anti-Detection
 spawn(function()
     while true do
-        if autoPrestige then
+        if autoPrestige and not strikeDetected then
             local prestige = getPrestige()
             if prestige >= 3 then autoPrestige = false sendWebhook("Max Prestige Reached!") end
             local reqLevel = 35 + (prestige * 5)
@@ -311,68 +359,76 @@ spawn(function()
                     local prestigeRemote = ReplicatedStorage.Remotes:FindFirstChild("Prestige")
                     if prestigeRemote then prestigeRemote:FireServer() end
                     sendWebhook("Prestiged to " .. (prestige + 1) .. "!")
-                    wait(8)
+                    wait(math.random(5, 10))
                 end
             end
         end
-        wait(2)
+        wait(math.random(1, 3))
     end
 end)
 
--- Auto Summon Stand
+-- Auto Summon Stand with Random Delay
 local function summonStand()
+    wait(math.random(0.1, 0.3))
     VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.Q, false, game)
-    wait(0.15)
+    wait(math.random(0.1, 0.2))
     VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.Q, false, game)
-    wait(0.5)
+    wait(math.random(0.5, 1))
 end
 
--- Auto Level Farm with Pilot (Optimized Attacks)
+-- Auto Level Farm with Pilot and Anti-Detection (Random Attacks, Movements)
 local function autoLevelFarm()
     noclip = true
-    character.HumanoidRootPart.CFrame = npcPositions.VampireFarm * CFrame.new(0, -30, 0)
+    character.HumanoidRootPart.CFrame = randomOffset(npcPositions.VampireFarm) * CFrame.new(0, -30, 0)
     if autoSummonStand then summonStand() end
 
-    while autoLevel do
+    while autoLevel and not strikeDetected do
         for _, mob in ipairs(Workspace.Living:GetChildren()) do
             if mob and mob:FindFirstChild("Humanoid") and mob.Humanoid.Health > 0 then
-                character.HumanoidRootPart.CFrame = mob.HumanoidRootPart.CFrame * CFrame.new(0, -30, 0)
+                character.HumanoidRootPart.CFrame = randomOffset(mob.HumanoidRootPart.CFrame) * CFrame.new(0, -30, 0)
 
-                -- M1 Combo
-                for i = 1, 4 do
+                -- Random M1 Combo
+                local comboCount = math.random(3, 5)
+                for i = 1, comboCount do
                     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, true, game, 0)
-                    wait(farmSpeed / 4)
+                    wait(farmSpeed / math.random(3, 5))
                     VirtualInputManager:SendMouseButtonEvent(0, 0, 0, false, game, 0)
-                    wait(farmSpeed / 4)
+                    wait(farmSpeed / math.random(3, 5))
                 end
 
-                -- Long E
+                -- Long E with Random Hold
                 VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.E, false, game)
-                wait(2)
+                wait(math.random(1, 2.5))
                 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.E, false, game)
-                wait(farmSpeed)
+                wait(farmSpeed + math.random(-0.1, 0.1))
 
-                -- R
+                -- R with Random
                 VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.R, false, game)
-                wait(0.5)
+                wait(math.random(0.3, 0.6))
                 VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.R, false, game)
-                wait(farmSpeed)
+                wait(farmSpeed + math.random(-0.1, 0.1))
             end
         end
-        wait(0.05)
+        wait(math.random(0.05, 0.15))
+        if antiDetection and math.random(1, 20) == 1 then  -- Random walk
+            VirtualInputManager:SendKeyEvent(true, "A", false, game)
+            wait(0.2)
+            VirtualInputManager:SendKeyEvent(false, "A", false, game)
+        end
     end
     noclip = false
 end
 
--- Auto Stand Farm (New Feature)
+-- Auto Stand Farm (From References: Use Arrow)
 local function autoStandFarmFunc()
-    while autoStandFarm do
-        character.HumanoidRootPart.CFrame = npcPositions.StandFarm
-        wait(1)
-        -- Use arrow or something; assume remote
-        local useItem = ReplicatedStorage.Remotes:FindFirstChild("UseItem")
-        if useItem then useItem:FireServer("Mysterious Arrow") end
-        wait(5)
+    while autoStandFarm and not strikeDetected do
+        character.HumanoidRootPart.CFrame = randomOffset(npcPositions.StandFarm)
+        wait(math.random(0.5, 1.5))
+        -- Simulate Use Item
+        VirtualInputManager:SendKeyEvent(true, Enum.KeyCode.One, false, game)  -- Assume 1 for Arrow
+        wait(0.2)
+        VirtualInputManager:SendKeyEvent(false, Enum.KeyCode.One, false, game)
+        wait(math.random(4, 6))
     end
 end
 
@@ -380,7 +436,7 @@ spawn(function()
     autoStandFarmFunc()
 end)
 
--- Auto Quests Optimized with Better Timing
+-- Auto Quests with Anti-Detection
 local mainQuestsDone = false
 local function autoQuests()
     if not mainQuestsDone then
@@ -397,13 +453,13 @@ local function autoQuests()
         }
         for _, pos in ipairs(mainSequence) do
             interactNPC(pos)
-            wait(20) -- More time for battles
+            wait(math.random(15, 25))  -- Varied battle time
         end
         mainQuestsDone = true
         sendWebhook("Main Quests Completed!")
     end
 
-    while autoLevel do
+    while autoLevel and not strikeDetected do
         local level = getLevel()
         local sidePos = nil
         if level < 10 then sidePos = npcPositions.OfficerSam
@@ -417,15 +473,17 @@ local function autoQuests()
         end
         if sidePos then
             interactNPC(sidePos)
-            wait(20)
+            wait(math.random(15, 25))
         end
-        wait(3)
+        wait(math.random(2, 4))
     end
 end
 
--- ESP (New Feature)
+-- ESP with Bypass (No Direct Highlight, Use Billboard with Random Updates)
 local function createESP(obj, color, text)
+    if not espEnabled then return end
     local bb = Instance.new("BillboardGui", obj)
+    bb.Name = "ESP" .. math.random(1, 1000)  -- Random name for obfuscation
     bb.Adornee = obj
     bb.Size = UDim2.new(0, 100, 0, 50)
     bb.AlwaysOnTop = true
@@ -439,40 +497,40 @@ end
 
 spawn(function()
     while true do
-        if espEnabled then
+        if espEnabled and not strikeDetected then
             for _, obj in ipairs(Workspace:GetDescendants()) do
                 if obj:IsA("Model") and obj:FindFirstChild("Humanoid") then
-                    if not obj:FindFirstChild("ESP") then
+                    if not obj:FindFirstChildOfClass("BillboardGui") then
                         createESP(obj.Head or obj.PrimaryPart, Color3.fromRGB(255, 0, 0), obj.Name .. " [HP: " .. math.floor(obj.Humanoid.Health) .. "]")
                     end
                 elseif obj.Name:match("Arrow") or obj.Name:match("Roka") then
-                    if not obj:FindFirstChild("ESP") then
+                    if not obj:FindFirstChildOfClass("BillboardGui") then
                         createESP(obj, Color3.fromRGB(0, 255, 0), obj.Name)
                     end
                 end
             end
         else
             for _, esp in ipairs(Workspace:GetDescendants()) do
-                if esp.Name == "ESP" then esp:Destroy() end
+                if esp:IsA("BillboardGui") and esp.Name:match("ESP") then esp:Destroy() end
             end
         end
-        wait(1)
+        wait(math.random(1, 2))  -- Random update interval
     end
 end)
 
--- Server Hop (New Feature)
+-- Server Hop with Delay
 spawn(function()
-    while serverHop do
-        wait(300) -- Hop every 5 min
+    while serverHop and not strikeDetected do
+        wait(math.random(180, 360))  -- Hop every 3-6 min
         TeleportService:Teleport(game.PlaceId, player)
     end
 end)
 
--- Main Loops with Error Handling
+-- Main Loops with pcall for Error Handling
 spawn(function()
     while true do
         pcall(function()
-            if autoLevel then
+            if autoLevel and not strikeDetected then
                 autoQuests()
                 autoLevelFarm()
             end
@@ -484,7 +542,7 @@ end)
 spawn(function()
     while true do
         pcall(function()
-            if autoItemFarm then
+            if autoItemFarm and not strikeDetected then
                 farmAndSellItems()
             end
         end)
@@ -497,7 +555,7 @@ MiscTab:Section({ Title = "Utilities" })
 MiscTab:Button({
     Title = "Teleport to Vampire Farm",
     Callback = function()
-        character.HumanoidRootPart.CFrame = npcPositions.VampireFarm
+        character.HumanoidRootPart.CFrame = randomOffset(npcPositions.VampireFarm)
     end
 })
 
@@ -517,7 +575,7 @@ MiscTab:Button({
 
 -- Notification on Load
 WindUI:Notify({
-    Title = "Ryzen Ultimate Loaded",
-    Content = "Script optimized for 2025 YBA. Enjoy!",
+    Title = "Ryzen Ultimate Secure Loaded",
+    Content = "Script optimized with anti-detection for 2025 YBA. Stay safe!",
     Duration = 5
 })
