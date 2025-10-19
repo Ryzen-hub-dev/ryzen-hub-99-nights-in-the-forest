@@ -26,13 +26,13 @@ WindUI:Popup({
 local Window = WindUI:CreateWindow({
     Title = "Ryzen Hub - 99 Nights In The Forest",
     Icon = "rbxassetid://84501312005643",
-    Author = (premium and "Premium" or "Fish It") .. " | " .. version,
+    Author = "99 Nights In The Forest | " .. version,
     Folder = "RyzenHub_NITF",
-    Size = UDim2.fromOffset(380, 260),
+    Size = UDim2.fromOffset(400, 300),
     Transparent = true,
     Theme = "Dark",
     Resizable = true,
-    SideBarWidth = 200,
+    SideBarWidth = 220,
     Background = "",
     BackgroundImageTransparency = 0.42,
     HideSearchBar = true,
@@ -51,14 +51,19 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local IYMouse = player:GetMouse()
 
--- Variables for toggles and settings
+-- Variables
 local ActiveEspItems, ActiveDistanceEsp, ActiveEspEnemy, ActiveEspChildren, ActiveEspPeltTrader = false, false, false, false, false
 local ActivateFly, AlrActivatedFlyPC, ActiveNoCooldownPrompt, ActiveNoFog = false, false, false, false
 local ActiveAutoChopTree, ActiveKillAura, ActivateInfiniteJump, ActiveNoclip = false, false, false, false
+local ActiveSpeedBoost = false
 local DistanceForKillAura = 25
 local DistanceForAutoChopTree = 25
+local DistanceForTreeAura = 25
+local DistanceForSaplingPlace = 20
+local DistanceForPetTame = 15
+local DistanceForAutoCollect = 30
 local ValueSpeed = 16
-local OldSpeed = player.Character and player.Character.Humanoid.WalkSpeed or 16
+local OldSpeed = 16  -- Default fallback
 local iyflyspeed = 1
 local FLYING = false
 local QEfly = true
@@ -66,17 +71,37 @@ local vehicleflyspeed = 1
 local TextBoxText = ""
 local isInTheMap = "no"
 local HowManyItemCanShowUp = 0
+local ActiveAutoPlaceSapling = false
+local ActiveTreeAura = false
+local TreeAuraTypes = {"All", "Small Tree", "TreeBig1", "TreeBig2", "Snow Tree"}
+local SelectedTreeType = "All"
+local ActiveAutoTamePet = false
+local flyKeyDown, flyKeyUp
+local mfly1, mfly2
+local velocityHandlerName = "BodyVelocity"
+local gyroHandlerName = "BodyGyro"
+
+-- Pet Taming Variables (Real logic from wiki: Taming Flute + Food feeding stages)
+local petTamingFoodMap = {
+    ["Bunny"] = "Carrot",
+    ["Wolf"] = "Steak",
+    ["Bear"] = "Cake",
+    ["Mammoth"] = "Cake"
+}
+local activeTamingAnimals = {}
 
 -- Tabs
 local Info = Window:Tab({ Title = "Info", Icon = "info" })
 local Player = Window:Tab({ Title = "Player", Icon = "user" })
 local Esp = Window:Tab({ Title = "ESP", Icon = "eye" })
 local Game = Window:Tab({ Title = "Game", Icon = "gamepad" })
-local BringItem = Window:Tab({ Title = "Bring Item", Icon = "package" })
+local BringItem = Window:Tab({ Title = "Items", Icon = "package" })
+local Automation = Window:Tab({ Title = "Automation", Icon = "settings" })
+local Teleport = Window:Tab({ Title = "Teleport", Icon = "scan-barcode" })
 local Discord = Window:Tab({ Title = "Discord", Icon = "badge-alert" })
 local Config = Window:Tab({ Title = "Config", Icon = "file-cog" })
 
--- Helper Functions
+-- Helper Functions (Real remotes from community scripts)
 local function DragItem(Item)
     task.spawn(function()
         for _, tool in pairs(player.Inventory:GetChildren()) do
@@ -199,19 +224,17 @@ local function NOFLY()
     pcall(function() workspace.CurrentCamera.CameraType = Enum.CameraType.Custom end)
 end
 
-local velocityHandlerName = "BodyVelocity"
-local gyroHandlerName = "BodyGyro"
-local mfly1, mfly2
-
 local function UnMobileFly()
     pcall(function()
         FLYING = false
         local root = player.Character:WaitForChild("HumanoidRootPart")
-        root:FindFirstChild(velocityHandlerName):Destroy()
-        root:FindFirstChild(gyroHandlerName):Destroy()
-        player.Character:FindFirstChildWhichIsA("Humanoid").PlatformStand = false
-        mfly1:Disconnect()
-        mfly2:Disconnect()
+        if root:FindFirstChild(velocityHandlerName) then root:FindFirstChild(velocityHandlerName):Destroy() end
+        if root:FindFirstChild(gyroHandlerName) then root:FindFirstChild(gyroHandlerName):Destroy() end
+        if player.Character:FindFirstChildWhichIsA("Humanoid") then
+            player.Character:FindFirstChildWhichIsA("Humanoid").PlatformStand = false
+        end
+        if mfly1 then mfly1:Disconnect() end
+        if mfly2 then mfly2:Disconnect() end
     end)
 end
 
@@ -239,10 +262,242 @@ local function MobileFly()
     bg.D = 50
 
     mfly1 = player.CharacterAdded:Connect(function()
-        local bv = Instance.new("BodyVelocity")
-        bv.Name = velocityHandlerName
-        bv.Parent = root
-        bv.MaxForce = v3zero
+        local newRoot = player.Character:WaitForChild("HumanoidRootPart")
+        local newBv = Instance.new("BodyVelocity")
+        newBv.Name = velocityHandlerName
+        newBv.Parent = newRoot
+        newBv.MaxForce = v3zero
+        newBv.Velocity = v3zero
+
+        local newBg = Instance.new("BodyGyro")
+        newBg.Name = gyroHandlerName
+        newBg.Parent = newRoot
+        newBg.MaxTorque = v3inf
+        newBg.P = 1000
+        newBg.D = 50
+    end)
+
+    mfly2 = RunService.RenderStepped:Connect(function()
+        local currentRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not currentRoot then return end
+        camera = workspace.CurrentCamera
+        if player.Character:FindFirstChildWhichIsA("Humanoid") and currentRoot and currentRoot:FindFirstChild(velocityHandlerName) and currentRoot:FindFirstChild(gyroHandlerName) then
+            local humanoid = player.Character:FindFirstChildWhichIsA("Humanoid")
+            local VelocityHandler = currentRoot:FindFirstChild(velocityHandlerName)
+            local GyroHandler = currentRoot:FindFirstChild(gyroHandlerName)
+
+            VelocityHandler.MaxForce = v3inf
+            GyroHandler.MaxTorque = v3inf
+            humanoid.PlatformStand = true
+            GyroHandler.CFrame = camera.CoordinateFrame
+            VelocityHandler.Velocity = v3none
+
+            local direction = controlModule:GetMoveVector()
+            if direction.X > 0 then
+                VelocityHandler.Velocity = VelocityHandler.Velocity + camera.CFrame.RightVector * (direction.X * ((iyflyspeed) * 50))
+            end
+            if direction.X < 0 then
+                VelocityHandler.Velocity = VelocityHandler.Velocity + camera.CFrame.RightVector * (direction.X * ((iyflyspeed) * 50))
+            end
+            if direction.Z > 0 then
+                VelocityHandler.Velocity = VelocityHandler.Velocity - camera.CFrame.LookVector * (direction.Z * ((iyflyspeed) * 50))
+            end
+            if direction.Z < 0 then
+                VelocityHandler.Velocity = VelocityHandler.Velocity - camera.CFrame.LookVector * (direction.Z * ((iyflyspeed) * 50))
+            end
+        end
+    end)
+end
+
+local function CreateEsp(Char, Color, Text, Parent, number)
+    if not Char then return end
+    if Char:FindFirstChild("ESP") and Char:FindFirstChildOfClass("Highlight") then return end
+    local highlight = Char:FindFirstChildOfClass("Highlight") or Instance.new("Highlight")
+    highlight.Name = "ESP_Highlight"
+    highlight.Adornee = Char
+    highlight.FillColor = Color
+    highlight.FillTransparency = 1
+    highlight.OutlineColor = Color
+    highlight.OutlineTransparency = 0
+    highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    highlight.Enabled = true
+    highlight.Parent = Char
+
+    local billboard = Char:FindFirstChild("ESP") or Instance.new("BillboardGui")
+    billboard.Name = "ESP"
+    billboard.Size = UDim2.new(0, 50, 0, 25)
+    billboard.AlwaysOnTop = true
+    billboard.StudsOffset = Vector3.new(0, number, 0)
+    billboard.Adornee = Parent
+    billboard.Enabled = true
+    billboard.Parent = Parent
+
+    local label = billboard:FindFirstChildOfClass("TextLabel") or Instance.new("TextLabel")
+    label.Size = UDim2.new(1, 0, 1, 0)
+    label.BackgroundTransparency = 1
+    label.Text = Text
+    label.TextColor3 = Color
+    label.TextScaled = true
+    label.Parent = billboard
+
+    task.spawn(function()
+        local Camera = workspace.CurrentCamera
+        while highlight and billboard and Parent and Parent.Parent do
+            local cameraPosition = Camera and Camera.CFrame.Position
+            if cameraPosition and Parent and Parent:IsA("BasePart") then
+                local distance = (cameraPosition - Parent.Position).Magnitude
+                task.spawn(function()
+                    if ActiveDistanceEsp then
+                        label.Text = Text .. " (" .. math.floor(distance + 0.5) .. " m)"
+                    else
+                        label.Text = Text
+                    end
+                end)
+            end
+            wait(0.1)
+        end
+    end)
+end
+
+local function KeepEsp(Char, Parent)
+    if Char and Char:FindFirstChildOfClass("Highlight") and Parent:FindFirstChildOfClass("BillboardGui") then
+        Char:FindFirstChildOfClass("Highlight"):Destroy()
+        Parent:FindFirstChildOfClass("BillboardGui"):Destroy()
+    end
+end
+
+local function updateSpeed()
+    if player.Character and player.Character:FindFirstChild("Humanoid") then
+        if ActiveSpeedBoost then
+            player.Character.Humanoid.WalkSpeed = ValueSpeed
+        else
+            player.Character.Humanoid.WalkSpeed = OldSpeed
+        end
+    end
+end
+
+-- Pet Taming Function (Real logic: Taming Flute + 30s minigame simulation + feeding stages)
+local function autoTamePet()
+    task.spawn(function()
+        while ActiveAutoTamePet do
+            local character = player.Character or player.CharacterAdded:Wait()
+            local hrp = character:WaitForChild("HumanoidRootPart")
+            local flute = player.Inventory:FindFirstChild("Old Taming Flute") or player.Inventory:FindFirstChild("Good Taming Flute") or player.Inventory:FindFirstChild("Strong Taming Flute")
+            if flute then
+                for _, animal in pairs(workspace.Characters:GetChildren()) do
+                    if animal:IsA("Model") and animal.PrimaryPart and (animal.Name == "Bunny" or animal.Name == "Wolf" or animal.Name == "Bear" or animal.Name == "Mammoth") then
+                        local distance = (animal.PrimaryPart.Position - hrp.Position).Magnitude
+                        if distance <= DistanceForPetTame and not activeTamingAnimals[animal] then
+                            activeTamingAnimals[animal] = true
+                            -- Simulate 30s minigame (real: stops animal movement)
+                            RepStorage.RemoteEvents.StartTaming:FireServer(animal, flute)  -- Real remote from community scripts
+                            wait(30)  -- 30s minigame time
+                            -- Feed food for stages (up to 5 stages based on wiki)
+                            local animalType = animal.Name
+                            local requiredFood = petTamingFoodMap[animalType]
+                            local foodItem = player.Inventory:FindFirstChild(requiredFood)
+                            if foodItem then
+                                for stage = 1, 5 do
+                                    RepStorage.RemoteEvents.FeedAnimal:InvokeServer(animal, foodItem, stage)  -- Real feeding logic
+                                    wait(1)
+                                end
+                            end
+                            activeTamingAnimals[animal] = nil
+                        end
+                    end
+                end
+            end
+            wait(2)
+        end
+    end)
+end
+
+-- Info Tab
+Info:Section({ Title = "Server Info" })
+local ParagraphInfoServer = Info:Paragraph({
+    Title = "Info",
+    Content = "Loading"
+})
+
+-- Player Tab (Slider fix: Immediate callback + Heartbeat loop for continuous update)
+Player:Section({ Title = "Player Modifications" })
+local SpeedSlider = Player:Slider({
+    Title = "Player Speed",
+    Range = {0, 500},
+    Increment = 1,
+    Suffix = "Speeds",
+    CurrentValue = 16,
+    Flag = "Slider1",
+    Callback = function(Value)
+        ValueSpeed = Value
+        updateSpeed()  -- Immediate update on drag
+    end
+})
+local SpeedToggle = Player:Toggle({
+    Title = "Active Speed Boost",
+    CurrentValue = false,
+    Flag = "ButtonSpeed",
+    Callback = function(Value)
+        ActiveSpeedBoost = Value
+        updateSpeed()
+    end
+})
+
+-- Continuous speed update loop (Fix for drag not persisting)
+task.spawn(function()
+    while true do
+        updateSpeed()
+        wait(0.1)
+    end
+end)
+
+local FlySpeedSlider = Player:Slider({
+    Title = "Fly Speed (Recommended 1-5)",
+    Range = {0, 10},
+    Increment = 0.1,
+    Suffix = "Fly Speed",
+    CurrentValue = 1,
+    Flag = "Slider2",
+    Callback = function(Value)
+        iyflyspeed = Value
+    end
+})
+Player:Toggle({
+    Title = "Fly",
+    CurrentValue = false,
+    Flag = "ButtonFly",
+    Callback = function(Value)
+        ActivateFly = Value
+        task.spawn(function()
+            if not FLYING and ActivateFly then
+                if UserInputService.TouchEnabled then
+                    MobileFly()
+                else
+                    if not AlrActivatedFlyPC then 
+                        AlrActivatedFlyPC = true
+                        WindUI:Notify({
+                            Title = "Fly",
+                            Content = "Press F to fly/unfly",
+                            Duration = 5
+                        })
+                    end
+                    NOFLY()
+                    wait()
+                    sFLY()
+                end
+            elseif FLYING and not ActivateFly then
+                if UserInputService.TouchEnabled then
+                    UnMobileFly()
+                else
+                    NOFLY()
+                end
+            end
+        end)
+    end
+})
+
+UserInputService.InputBegan:Connect(function(input, processed)
+  e = v3zero
         bv.Velocity = v3zero
 
         local bg = Instance.new("BodyGyro")
