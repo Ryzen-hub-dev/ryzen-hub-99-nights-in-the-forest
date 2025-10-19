@@ -1,20 +1,27 @@
--- Ryzen Hub - 99 Nights In The Forest (v2.1 - October 19, 2025)
--- Real Implementation Based on Game Mechanics and Wiki Data
--- Requires WindUI Library and Compatible Executor
+-- Ryzen Hub - 99 Nights In The Forest (v2.2 - October 19, 2025)
+-- Fixed UI Loading Issues with Enhanced Error Handling and Fallback
 
-local version = "v2.1 (October 19, 2025)"
-local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+local version = "v2.2 (October 19, 2025)"
+local success, WindUI = pcall(function()
+    return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
+end)
 
--- Error Handling
-if not WindUI then
-    error("WindUI library failed to load. Ensure your executor supports HTTP requests.")
-    return
+-- Fallback if primary URL fails
+if not success or not WindUI then
+    warn("Primary WindUI load failed, attempting fallback...")
+    success, WindUI = pcall(function()
+        return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/main.lua"))()
+    end)
+    if not success or not WindUI then
+        error("WindUI library failed to load. Check your internet connection or executor compatibility.")
+        return
+    end
 end
 
 WindUI:Popup({
     Title = "Ryzen Hub",
     Icon = "rbxassetid://84501312005643",
-    Content = "Script loaded successfully. Join our Discord for support!",
+    Content = "UI loaded. Join our Discord for support!",
     Buttons = {
         {
             Title = "Copy Link",
@@ -51,6 +58,23 @@ local Window = WindUI:CreateWindow({
         Callback = function() end,
     },
 })
+
+if not Window then
+    warn("Window creation failed. Attempting to reinitialize UI...")
+    Window = WindUI:CreateWindow({
+        Title = "Ryzen Hub - 99 Nights In The Forest",
+        Icon = "rbxassetid://84501312005643",
+        Author = "Ryzen Team | " .. version,
+        Folder = "RyzenHub_NITF",
+        Size = UDim2.fromOffset(450, 350),
+        Transparent = true,
+        Theme = "Dark",
+    })
+    if not Window then
+        error("UI initialization failed. Script cannot proceed.")
+        return
+    end
+end
 
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -1174,6 +1198,6 @@ WindUI:LoadConfiguration()
 
 WindUI:Notify({
     Title = "Ryzen Hub",
-    Content = "Script loaded at 08:03 PM +08, October 19, 2025. Enjoy!",
+    Content = "Script loaded at 08:13 PM +08, October 19, 2025. UI should now be visible!",
     Duration = 5
 })
