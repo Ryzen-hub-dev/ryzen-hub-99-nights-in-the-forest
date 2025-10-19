@@ -14,7 +14,7 @@ if not success or not WindUI then
 end
 
 WindUI:Popup({
-    Title = "Ryzen Hub",
+    Title = "99 Night In The Forest | Beta",
     Icon = "rbxassetid://84501312005643",
     Content = "Join our Discord server",
     Buttons = {
@@ -36,9 +36,9 @@ WindUI:Popup({
 })
 
 local Window = WindUI:CreateWindow({
-    Title = "Ryzen Hub - 99 Nights In The Forest",
+    Title = "99 Night In The Forest | Beta",
     Icon = "rbxassetid://84501312005643",
-    Author = "99 Nights In The Forest | " .. version,
+    Author = "99 Night In The Forest | " .. version,
     Folder = "RyzenHub_NITF",
     Size = UDim2.fromOffset(400, 300),
     Transparent = true,
@@ -58,9 +58,9 @@ local Window = WindUI:CreateWindow({
 if not Window then
     warn("Window creation failed. Attempting to reinitialize UI...")
     Window = WindUI:CreateWindow({
-        Title = "Ryzen Hub - 99 Nights In The Forest",
+        Title = "99 Night In The Forest | Beta",
         Icon = "rbxassetid://84501312005643",
-        Author = "99 Nights In The Forest | " .. version,
+        Author = "99 Night In The Forest | " .. version,
         Folder = "RyzenHub_NITF",
         Size = UDim2.fromOffset(400, 300),
         Transparent = true,
@@ -72,9 +72,44 @@ if not Window then
     end
 end
 
+-- DRAGGABLE GUI IMPLEMENTATION --
+local UserInputService = game:GetService("UserInputService")
+local dragging, dragInput, dragStart, startPos
+
+Window.MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Window.MainFrame.Position
+
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
+            end
+        end)
+    end
+end)
+
+Window.MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        Window.MainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
+
 local Players = game:GetService("Players")
 local RepStorage = game:GetService("ReplicatedStorage")
-local UserInputService = game:GetService("UserInputService")
 local RunService = game:GetService("RunService")
 local Lighting = game:GetService("Lighting")
 local player = Players.LocalPlayer
@@ -105,7 +140,6 @@ local TreeAuraTypes = {"All", "Small Tree", "TreeBig1", "TreeBig2", "Snow Tree",
 local SelectedTreeType = "All"
 local ActiveAutoTamePet = false
 local flyKeyDown, flyKeyUp
-local mfly1, mfly2
 local velocityHandlerName = "BodyVelocity"
 local gyroHandlerName = "BodyGyro"
 local ActiveInfHealth = false
@@ -1910,7 +1944,7 @@ Automation:Toggle({
 })
 Automation:Toggle({
     Title = "Create Safe Zone",
-    Desc = "Create a safe area",
+    Desc = "Create a safe zone at campground",
     Default = false,
     Save = true,
     Callback = function(Value)
@@ -1919,7 +1953,7 @@ Automation:Toggle({
     end
 })
 Automation:Toggle({
-    Title = "TP to Safe Zone (Low HP)",
+    Title = "TP to Safe Zone Low HP",
     Desc = "Teleport to safe zone when health is low",
     Default = false,
     Save = true,
@@ -1929,86 +1963,77 @@ Automation:Toggle({
     end
 })
 
-Teleport:Section({ Title = "Teleport" })
-Teleport:Toggle({
-    Title = "Auto TP to Enemies",
-    Desc = "Automatically teleport to enemies",
-    Default = false,
-    Save = true,
-    Callback = function(Value)
-        ActiveAutoTpEnemies = Value
-        autoTpEnemies()
+Teleport:Section({ Title = "Teleport Options" })
+Teleport:Button({
+    Title = "Teleport to Campfire",
+    Desc = "Teleport to main campfire",
+    Callback = function()
+        task.spawn(function()
+            player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.Campground.MainFire.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+        end)
     end
 })
-Teleport:Toggle({
-    Title = "Auto TP to Trees",
-    Desc = "Automatically teleport to trees",
-    Default = false,
-    Save = true,
-    Callback = function(Value)
-        ActiveAutoTpTrees = Value
-        autoTpTrees()
+Teleport:Button({
+    Title = "Teleport to Snowy Area",
+    Desc = "Teleport to snowy area",
+    Callback = function()
+        task.spawn(function()
+            player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.SnowyArea.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+        end)
+    end
+})
+Teleport:Button({
+    Title = "Teleport to Desert",
+    Desc = "Teleport to desert area",
+    Callback = function()
+        task.spawn(function()
+            player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.DesertArea.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+        end)
     end
 })
 
-Discord:Section({ Title = "Join Discord Server" })
+Discord:Section({ Title = "Community" })
 Discord:Button({
-    Title = "Copy Discord Invite",
-    Desc = "Copy the Discord invite link to clipboard",
+    Title = "Join Discord",
+    Desc = "Join our community server",
     Callback = function()
-        setclipboard("https://discord.gg/E2TqYRsRP4")
-        WindUI:Notify({
-            Title = "Ryzen Notify",
+        setclipboard("https://discord.gg/KG9ADqwT9Q")
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Discord Invite",
+            Text = "Link Copied to Clipboard!",
             Icon = "rbxassetid://84501312005643",
-            Content = "✅ Discord Link Copied!",
             Duration = 4
         })
     end
 })
-Discord:Button({
-    Title = "Open Discord",
-    Desc = "Open Discord in your browser (if supported)",
-    Callback = function()
-        loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/DiscordInvite/main/DiscordInvite.lua"))("E2TqYRsRP4")
-    end
-})
 
 Config:Section({ Title = "Configuration" })
-Config:Toggle({
-    Title = "Active Distance for ESP",
-    Desc = "Show distance in ESP labels",
-    Default = false,
-    Save = true,
-    Callback = function(Value)
-        ActiveDistanceEsp = Value
-    end
-})
 Config:Button({
-    Title = "Unload Script",
-    Desc = "Destroy the script interface",
+    Title = "Reset All Settings",
+    Desc = "Reset all saved settings",
     Callback = function()
-        WindUI:Destroy()
+        WindUI:ResetAll()
+        WindUI:Notify({
+            Title = "Reset",
+            Content = "All settings have been reset!",
+            Duration = 5
+        })
     end
 })
 
-task.spawn(function()
-    while true do
-        task.wait(1)
-        local updatedInfo = getServerInfo()
-        local updatedContent = string.format(
-            "📌 PlaceId: %s
-             📌 JobId: %s
-             📌 IsStudio: %s
-             📌 Players: %d/%d",
-            updatedInfo.PlaceId,
-            updatedInfo.JobId,
-            updatedInfo.IsStudio and "Yes" or "No",
-            updatedInfo.CurrentPlayers,
-            updatedInfo.MaxPlayers
-        )
-        ParagraphInfoServer:Set({
-            Title = "Info",
-            Content = updatedContent
-        })
-    end
+-- Update server info periodically
+RunService.RenderStepped:Connect(function()
+    local updatedInfo = getServerInfo()
+    local updatedContent = string.format(
+        "📌 PlaceId: %d\n📌 JobId: %s\n📌 IsStudio: %s\n📌 Players: %d/%d",
+        updatedInfo.PlaceId,
+        updatedInfo.JobId,
+        updatedInfo.IsStudio and "Yes" or "No",
+        updatedInfo.CurrentPlayers,
+        updatedInfo.MaxPlayers
+    )
+    ParagraphInfoServer:Set({
+        Title = "Info",
+        Content = updatedContent
+    })
 end)
