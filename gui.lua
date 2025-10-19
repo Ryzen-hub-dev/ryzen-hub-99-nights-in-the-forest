@@ -33,31 +33,17 @@ local Window = WindUI:CreateWindow({
     Size = UDim2.fromOffset(400, 300),
     Transparent = true,
     Theme = "Dark",
-    ThemeSettings = {
-        Gradient = true,
-        GradientColor1 = Color3.fromRGB(40, 40, 50),
-        GradientColor2 = Color3.fromRGB(60, 60, 70),
-        BackgroundTransparency = 0.3,
-    },
     Resizable = true,
     SideBarWidth = 220,
-    Background = "rbxassetid://123456789", -- 需替換為有效背景ID
-    BackgroundImageTransparency = 0.5,
+    Background = "",
+    BackgroundImageTransparency = 0.42,
     HideSearchBar = true,
-    ScrollBarEnabled = true,
-    ScrollBarStyle = "Modern",
+    ScrollBarEnabled = false,
     User = {
         Enabled = true,
         Anonymous = false,
         Callback = function() end,
     },
-})
-
-WindUI:Notify({
-    Title = "Ryzen Hub",
-    Icon = "rbxassetid://84501312005643",
-    Content = "Window Loaded! Version: " .. version,
-    Duration = 5
 })
 
 local Players = game:GetService("Players")
@@ -67,12 +53,11 @@ local RunService = game:GetService("RunService")
 local player = Players.LocalPlayer
 local IYMouse = player:GetMouse()
 
--- Variables
+-- Variables for toggles and settings
 local ActiveEspItems, ActiveDistanceEsp, ActiveEspEnemy, ActiveEspChildren, ActiveEspPeltTrader = false, false, false, false, false
 local ActivateFly, AlrActivatedFlyPC, ActiveNoCooldownPrompt, ActiveNoFog = false, false, false, false
 local ActiveAutoChopTree, ActiveKillAura, ActivateInfiniteJump, ActiveNoclip = false, false, false, false
-local ActiveSpeedBoost, ActiveTreeAura, ActiveAutoPlaceSapling, ActiveAutoTamePet = false, false, false, false
-local ActiveAutoCollectResources, ActiveAutoRepairTools, ActiveAutoLightCampfire, ActiveAutoCompleteQuests = false, false, false, false
+local ActiveSpeedBoost = false
 local DistanceForKillAura = 25
 local DistanceForAutoChopTree = 25
 local DistanceForTreeAura = 25
@@ -88,21 +73,35 @@ local vehicleflyspeed = 1
 local TextBoxText = ""
 local isInTheMap = "no"
 local HowManyItemCanShowUp = 0
+local ActiveAutoPlaceSapling = false
+local ActiveTreeAura = false
 local TreeAuraTypes = {"All", "Small Tree", "TreeBig1", "TreeBig2", "Snow Tree"}
 local SelectedTreeType = "All"
-local TeleportLocations = {
-    {Name = "Main Campfire", Position = function() return workspace.Map.Campground.MainFire.PrimaryPart and workspace.Map.Campground.MainFire.PrimaryPart.CFrame + Vector3.new(0, 10, 0) end},
-    {Name = "Pelt Trader", Position = function() 
-        local peltTrader = workspace.Characters:FindFirstChild("Pelt Trader")
-        return peltTrader and peltTrader.PrimaryPart and peltTrader.PrimaryPart.CFrame + Vector3.new(0, 5, 0)
-    end},
-    {Name = "Resource Spawn 1", Position = function() return CFrame.new(100, 10, 100) end},
-    {Name = "Resource Spawn 2", Position = function() return CFrame.new(-100, 10, -100) end}
-}
+local ActiveAutoTamePet = false
 local flyKeyDown, flyKeyUp
 local mfly1, mfly2
 local velocityHandlerName = "BodyVelocity"
 local gyroHandlerName = "BodyGyro"
+
+-- Pet Taming Variables
+local petTamingFoodMap = {
+    ["Bunny"] = "Carrot",
+    ["Wolf"] = "Steak",
+    ["Bear"] = "Cake",
+    ["Mammoth"] = "Cake"
+}
+local activeTamingAnimals = {}
+
+-- Tabs
+local Info = Window:Tab({ Title = "Info", Icon = "info" })
+local Player = Window:Tab({ Title = "Player", Icon = "user" })
+local Esp = Window:Tab({ Title = "ESP", Icon = "eye" })
+local Game = Window:Tab({ Title = "Game", Icon = "gamepad" })
+local BringItem = Window:Tab({ Title = "Items", Icon = "package" })
+local Automation = Window:Tab({ Title = "Automation", Icon = "settings" })
+local Teleport = Window:Tab({ Title = "Teleport", Icon = "scan-barcode" })
+local Discord = Window:Tab({ Title = "Discord", Icon = "badge-alert" })
+local Config = Window:Tab({ Title = "Config", Icon = "file-cog" })
 
 -- Helper Functions
 local function DragItem(Item)
@@ -297,16 +296,16 @@ local function MobileFly()
 
             local direction = controlModule:GetMoveVector()
             if direction.X > 0 then
-                VelocityHandler.Velocity = VelocityHandler.Velocity + camera.CFrame.RightVector * (direction.X * (iyflyspeed * 50))
+                VelocityHandler.Velocity = VelocityHandler.Velocity + camera.CFrame.RightVector * (direction.X * ((iyflyspeed) * 50))
             end
             if direction.X < 0 then
-                VelocityHandler.Velocity = VelocityHandler.Velocity + camera.CFrame.RightVector * (direction.X * (iyflyspeed * 50))
+                VelocityHandler.Velocity = VelocityHandler.Velocity + camera.CFrame.RightVector * (direction.X * ((iyflyspeed) * 50))
             end
             if direction.Z > 0 then
-                VelocityHandler.Velocity = VelocityHandler.Velocity - camera.CFrame.LookVector * (direction.Z * (iyflyspeed * 50))
+                VelocityHandler.Velocity = VelocityHandler.Velocity - camera.CFrame.LookVector * (direction.Z * ((iyflyspeed) * 50))
             end
             if direction.Z < 0 then
-                VelocityHandler.Velocity = VelocityHandler.Velocity - camera.CFrame.LookVector * (direction.Z * (iyflyspeed * 50))
+                VelocityHandler.Velocity = VelocityHandler.Velocity - camera.CFrame.LookVector * (direction.Z * ((iyflyspeed) * 50))
             end
         end
     end)
@@ -379,34 +378,61 @@ local function updateSpeed()
     end
 end
 
--- Tabs
-local Info = Window:Tab({ Title = "Info", Icon = "ℹ️" })
-local Player = Window:Tab({ Title = "Player", Icon = "👤" })
-local Esp = Window:Tab({ Title = "ESP", Icon = "👁️" })
-local Game = Window:Tab({ Title = "Game", Icon = "🎮" })
-local Automation = Window:Tab({ Title = "Automation", Icon = "⚙️" })
-local Teleport = Window:Tab({ Title = "Teleport", Icon = "🚀" })
-local BringItem = Window:Tab({ Title = "Items", Icon = "📦" })
-local Discord = Window:Tab({ Title = "Discord", Icon = "💬" })
-local Config = Window:Tab({ Title = "Config", Icon = "⚙️" })
+-- Pet Taming Function
+local function autoTamePet()
+    task.spawn(function()
+        while ActiveAutoTamePet do
+            local character = player.Character or player.CharacterAdded:Wait()
+            local hrp = character:WaitForChild("HumanoidRootPart")
+            local flute = player.Inventory:FindFirstChild("Old Taming Flute") or player.Inventory:FindFirstChild("Good Taming Flute") or player.Inventory:FindFirstChild("Strong Taming Flute")
+            if flute then
+                for _, animal in pairs(workspace.Characters:GetChildren()) do
+                    if animal:IsA("Model") and animal.PrimaryPart and (animal.Name == "Bunny" or animal.Name == "Wolf" or animal.Name == "Bear" or animal.Name == "Mammoth") then
+                        local distance = (animal.PrimaryPart.Position - hrp.Position).Magnitude
+                        if distance <= DistanceForPetTame then
+                            -- Simulate starting taming minigame - assume remote for starting taming
+                            RepStorage.RemoteEvents.StartTaming:FireServer(animal, flute)
+                            wait(1)  -- Wait for minigame completion simulation
+                            -- Feed food
+                            local animalType = animal.Name
+                            local requiredFood = petTamingFoodMap[animalType] or "Carrot"
+                            local foodItem = player.Inventory:FindFirstChild(requiredFood)
+                            if foodItem then
+                                RepStorage.RemoteEvents.FeedAnimal:FireServer(animal, foodItem)
+                            end
+                            -- Repeat for stages (up to 3-5 depending on animal)
+                            for stage = 1, 5 do  -- Assume max 5 stages
+                                RepStorage.RemoteEvents.StartTaming:FireServer(animal, flute)
+                                wait(1)
+                                if foodItem then
+                                    RepStorage.RemoteEvents.FeedAnimal:FireServer(animal, foodItem)
+                                end
+                            end
+                        end
+                    end
+                end
+            end
+            wait(2)  -- Check every 2 seconds
+        end
+    end)
+end
 
 -- Info Tab
-Info:Section({ Title = "Server Info", Style = "Card" })
+Info:Section({ Title = "Server Info" })
 local ParagraphInfoServer = Info:Paragraph({
     Title = "Info",
-    Content = "Loading...",
-    Tooltip = "Displays current server details"
+    Content = "Loading"
 })
 
 -- Player Tab
-Player:Section({ Title = "Modifications", Style = "Card" })
+Player:Section({ Title = "Player Modifications" })
 local SpeedSlider = Player:Slider({
-    Title = "Walk Speed",
+    Title = "Player Speed",
     Desc = "Adjust player walk speed",
     Min = 0,
     Max = 500,
     Increment = 1,
-    Suffix = "Speed",
+    Suffix = "Speeds",
     Default = 16,
     Save = true,
     Callback = function(Value)
@@ -415,8 +441,8 @@ local SpeedSlider = Player:Slider({
     end
 })
 local SpeedToggle = Player:Toggle({
-    Title = "Speed Boost",
-    Desc = "Enable/Disable speed boost",
+    Title = "Active Speed Boost",
+    Desc = "Enable/Disable speed modification",
     Default = false,
     Save = true,
     Callback = function(Value)
@@ -426,11 +452,11 @@ local SpeedToggle = Player:Toggle({
 })
 local FlySpeedSlider = Player:Slider({
     Title = "Fly Speed",
-    Desc = "Adjust fly speed (1-5 recommended)",
+    Desc = "Adjust fly speed (recommended 1-5)",
     Min = 0,
     Max = 10,
     Increment = 0.1,
-    Suffix = "Speed",
+    Suffix = "Fly Speed",
     Default = 1,
     Save = true,
     Callback = function(Value)
@@ -439,7 +465,7 @@ local FlySpeedSlider = Player:Slider({
 })
 Player:Toggle({
     Title = "Fly",
-    Desc = "Enable/Disable flying (Press F)",
+    Desc = "Enable/Disable flying (Press F to toggle)",
     Default = false,
     Save = true,
     Callback = function(Value)
@@ -453,7 +479,7 @@ Player:Toggle({
                         AlrActivatedFlyPC = true
                         WindUI:Notify({
                             Title = "Fly",
-                            Content = "Press F to fly/unfly",
+                            Content = "Press F to fly/unfly (won't disable toggle)",
                             Duration = 5
                         })
                     end
@@ -526,23 +552,21 @@ Player:Toggle({
     Save = true,
     Callback = function(Value)
         ActivateInfiniteJump = Value
-        if Value then
+        while ActivateInfiniteJump do
             local m = player:GetMouse()
-            local connection
-            connection = m.KeyDown:Connect(function(k)
-                if not ActivateInfiniteJump then
-                    connection:Disconnect()
-                    return
-                end
-                if k:byte() == 32 then
-                    local humanoid = player.Character and player.Character:FindFirstChildOfClass('Humanoid')
-                    if humanoid then
-                        humanoid:ChangeState('Jumping')
-                        wait()
-                        humanoid:ChangeState('Seated')
+            m.KeyDown:connect(function(k)
+                if ActivateInfiniteJump then
+                    if k:byte() == 32 then
+                        local humanoid = player.Character:FindFirstChildOfClass('Humanoid')
+                        if humanoid then
+                            humanoid:ChangeState('Jumping')
+                            wait()
+                            humanoid:ChangeState('Seated')
+                        end
                     end
                 end
             end)
+            wait(0.1)
         end
     end
 })
@@ -590,9 +614,18 @@ Player:Toggle({
         end)
     end
 })
+Player:Button({
+    Title = "Teleport to Campfire",
+    Desc = "Teleport to main campfire",
+    Callback = function()
+        task.spawn(function()
+            player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.Campground.MainFire.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+        end)
+    end
+})
 
 -- ESP Tab
-Esp:Section({ Title = "ESP Settings", Style = "Card" })
+Esp:Section({ Title = "ESP Settings" })
 Esp:Toggle({
     Title = "Items ESP",
     Desc = "Highlight items in the game",
@@ -693,13 +726,13 @@ Esp:Toggle({
 })
 
 -- Game Tab
-Game:Section({ Title = "Game Modifications", Style = "Card" })
+Game:Section({ Title = "Game Modifications" })
 Game:Paragraph({
     Title = "Note",
-    Content = "For Auto Chop Tree, Kill Aura, and Tree Aura, equip any axe to make it work!"
+    Content = "For Auto Chop Tree and kill aura work equip any of axe and it will work!"
 })
-Game:Slider({
-    Title = "Kill Aura Distance",
+local KillAuraSlider = Game:Slider({
+    Title = "Distance For Kill Aura",
     Desc = "Set distance for Kill Aura",
     Min = 25,
     Max = 10000,
@@ -723,15 +756,13 @@ Game:Toggle({
                 local character = player.Character or player.CharacterAdded:Wait()
                 local hrp = character:WaitForChild("HumanoidRootPart")
                 local weapon = player.Inventory:FindFirstChild("Old Axe") or player.Inventory:FindFirstChild("Good Axe") or player.Inventory:FindFirstChild("Strong Axe") or player.Inventory:FindFirstChild("Chainsaw")
-                if weapon then
-                    for _, bunny in pairs(workspace.Characters:GetChildren()) do
-                        if bunny:IsA("Model") and bunny.PrimaryPart and bunny.Name ~= player.Name then
-                            local distance = (bunny.PrimaryPart.Position - hrp.Position).Magnitude
-                            if distance <= DistanceForKillAura then
-                                task.spawn(function()
-                                    RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(bunny, weapon, 999, hrp.CFrame)
-                                end)
-                            end
+                for _, bunny in pairs(workspace.Characters:GetChildren()) do
+                    if bunny:IsA("Model") and bunny.PrimaryPart then
+                        local distance = (bunny.PrimaryPart.Position - hrp.Position).Magnitude
+                        if distance <= DistanceForKillAura then
+                            task.spawn(function()
+                                RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(bunny, weapon, 999, hrp.CFrame)
+                            end)
                         end
                     end
                 end
@@ -740,9 +771,9 @@ Game:Toggle({
         end)
     end
 })
-Game:Slider({
-    Title = "Auto Chop Tree Distance",
-    Desc = "Set distance for auto tree chopping (below 250 recommended for strong axe/chainsaw)",
+local AutoChopSlider = Game:Slider({
+    Title = "Distance For Auto Chop Tree",
+    Desc = "Set distance for auto tree chopping",
     Min = 0,
     Max = 1000,
     Increment = 0.1,
@@ -765,295 +796,402 @@ Game:Toggle({
                 local character = player.Character or player.CharacterAdded:Wait()
                 local hrp = character:WaitForChild("HumanoidRootPart")
                 local weapon = player.Inventory:FindFirstChild("Old Axe") or player.Inventory:FindFirstChild("Good Axe") or player.Inventory:FindFirstChild("Strong Axe") or player.Inventory:FindFirstChild("Chainsaw")
-                if weapon then
-                    for _, tree in pairs(workspace.Map.Foliage:GetChildren()) do
-                        if tree:IsA("Model") and (tree.Name == "Small Tree" or tree.Name == "TreeBig1" or tree.Name == "TreeBig2") and tree.PrimaryPart then
-                            local distance = (tree.PrimaryPart.Position - hrp.Position).Magnitude
-                            if distance <= DistanceForAutoChopTree then
-                                task.spawn(function()
-                                    RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(tree, weapon, 999, hrp.CFrame)
-                                end)
-                            end
-                        end
-                    end
-                    for _, tree in pairs(workspace.Map.Landmarks:GetChildren()) do
-                        if tree:IsA("Model") and (tree.Name == "Small Tree" or tree.Name == "TreeBig1" or tree.Name == "TreeBig2") and tree.PrimaryPart then
-                            local distance = (tree.PrimaryPart.Position - hrp.Position).Magnitude
-                            if distance <= DistanceForAutoChopTree then
-                                task.spawn(function()
-                                    RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(tree, weapon, 999, hrp.CFrame)
-                                end)
-                            end
-                        end
-                    end
-                end
-                wait(0.01)
-            end
-        end)
-    end
-})
-
--- Automation Tab
-Automation:Section({ Title = "Tree & Sapling", Style = "Card" })
-Automation:Slider({
-    Title = "Tree Aura Distance",
-    Desc = "Set range for Tree Aura",
-    Min = 10,
-    Max = 500,
-    Increment = 1,
-    Suffix = "Units",
-    Default = 25,
-    Save = true,
-    Callback = function(Value)
-        DistanceForTreeAura = Value
-    end
-})
-local TreeTypeDropdown = Automation:Dropdown({
-    Title = "Tree Type",
-    Desc = "Select tree type for aura",
-    Options = TreeAuraTypes,
-    Default = "All",
-    Save = true,
-    Callback = function(Value)
-        SelectedTreeType = Value[1]
-    end
-})
-Automation:Toggle({
-    Title = "Tree Aura",
-    Desc = "Auto chop selected trees",
-    Default = false,
-    Save = true,
-    Callback = function(Value)
-        ActiveTreeAura = Value
-        task.spawn(function()
-            while ActiveTreeAura do
-                local character = player.Character or player.CharacterAdded:Wait()
-                local hrp = character:WaitForChild("HumanoidRootPart")
-                local weapon = player.Inventory:FindFirstChild("Old Axe") or player.Inventory:FindFirstChild("Good Axe") or player.Inventory:FindFirstChild("Strong Axe") or player.Inventory:FindFirstChild("Chainsaw")
-                if weapon then
-                    local treeNames = {"Small Tree", "TreeBig1", "TreeBig2", "Snow Tree"}
-                    if SelectedTreeType ~= "All" then
-                        treeNames = {SelectedTreeType}
-                    end
-                    for _, treeName in pairs(treeNames) do
-                        for _, tree in pairs(workspace.Map.Foliage:GetChildren()) do
-                            if tree:IsA("Model") and tree.Name == treeName and tree.PrimaryPart then
-                                local distance = (tree.PrimaryPart.Position - hrp.Position).Magnitude
-                                if distance <= DistanceForTreeAura then
-                                    task.spawn(function()
-                                        RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(tree, weapon, 999, hrp.CFrame)
-                                    end)
-                                end
-                            end
-                        end
-                        for _, tree in pairs(workspace.Map.Landmarks:GetChildren()) do
-                            if tree:IsA("Model") and tree.Name == treeName and tree.PrimaryPart then
-                                local distance = (tree.PrimaryPart.Position - hrp.Position).Magnitude
-                                if distance <= DistanceForTreeAura then
-                                    task.spawn(function()
-                                        RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(tree, weapon, 999, hrp.CFrame)
-                                    end)
-                                end
-                            end
-                        end
-                    end
-                end
-                wait(0.01)
-            end
-        end)
-    end
-})
-Automation:Slider({
-    Title = "Sapling Place Distance",
-    Desc = "Set range for auto placing saplings",
-    Min = 5,
-    Max = 50,
-    Increment = 1,
-    Suffix = "Units",
-    Default = 20,
-    Save = true,
-    Callback = function(Value)
-        DistanceForSaplingPlace = Value
-    end
-})
-Automation:Toggle({
-    Title = "Auto Place Sapling",
-    Desc = "Auto place saplings around you",
-    Default = false,
-    Save = true,
-    Callback = function(Value)
-        ActiveAutoPlaceSapling = Value
-        task.spawn(function()
-            while ActiveAutoPlaceSapling do
-                local character = player.Character or player.CharacterAdded:Wait()
-                local hrp = character:WaitForChild("HumanoidRootPart")
-                local saplingTool = player.Inventory:FindFirstChild("Seed Box")
-                if saplingTool then
-                    for angle = 0, 360, 30 do
-                        local rad = math.rad(angle)
-                        local placePos = hrp.Position + Vector3.new(math.cos(rad) * DistanceForSaplingPlace, 0, math.sin(rad) * DistanceForSaplingPlace)
-                        task.spawn(function()
-                            RepStorage.RemoteEvents.PlaceItem:FireServer(saplingTool, CFrame.new(placePos))
-                        end)
-                        wait(0.1)
-                    end
-                end
-                wait(5)
-            end
-        end)
-    end
-})
-
-Automation:Section({ Title = "Advanced Automation", Style = "Card" })
-Automation:Slider({
-    Title = "Collect Distance",
-    Desc = "Set range for auto collecting resources",
-    Min = 5,
-    Max = 100,
-    Increment = 1,
-    Suffix = "Units",
-    Default = 30,
-    Save = true,
-    Callback = function(Value)
-        DistanceForAutoCollect = Value
-    end
-})
-Automation:Toggle({
-    Title = "Auto Collect Resources",
-    Desc = "Auto collect nearby resources",
-    Default = false,
-    Save = true,
-    Callback = function(Value)
-        ActiveAutoCollectResources = Value
-        task.spawn(function()
-            while ActiveAutoCollectResources do
-                local character = player.Character or player.CharacterAdded:Wait()
-                local hrp = character:WaitForChild("HumanoidRootPart")
-                for _, item in pairs(workspace.Items:GetChildren()) do
-                    if item:IsA("Model") and item.PrimaryPart then
-                        local distance = (item.PrimaryPart.Position - hrp.Position).Magnitude
-                        if distance <= DistanceForAutoCollect then
-                            DragItem(item)
-                        end
-                    end
-                end
-                wait(0.5)
-            end
-        end)
-    end
-})
-Automation:Toggle({
-    Title = "Auto Repair Tools",
-    Desc = "Auto repair tools in inventory",
-    Default = false,
-    Save = true,
-    Callback = function(Value)
-        ActiveAutoRepairTools = Value
-        task.spawn(function()
-            while ActiveAutoRepairTools do
-                local character = player.Character or player.CharacterAdded:Wait()
-                for _, tool in pairs(player.Inventory:GetChildren()) do
-                    if tool:IsA("Model") and tool:GetAttribute("Durability") and tool:GetAttribute("MaxDurability") then
-                        if tool:GetAttribute("Durability") < tool:GetAttribute("MaxDurability") then
+                for _, bunny in pairs(workspace.Map.Foliage:GetChildren()) do
+                    if bunny:IsA("Model") and (bunny.Name == "Small Tree" or bunny.Name == "TreeBig1" or bunny.Name == "TreeBig2") and bunny.PrimaryPart then
+                        local distance = (bunny.PrimaryPart.Position - hrp.Position).Magnitude
+                        if distance <= DistanceForAutoChopTree then
                             task.spawn(function()
-                                RepStorage.RemoteEvents.RepairTool:FireServer(tool) -- 需根據實際遠程事件調整
+                                RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(bunny, weapon, 999, hrp.CFrame)
                             end)
                         end
                     end
                 end
-                wait(10)
-            end
-        end)
-    end
-})
-Automation:Toggle({
-    Title = "Auto Light Campfire",
-    Desc = "Keep main campfire lit",
-    Default = false,
-    Save = true,
-    Callback = function(Value)
-        ActiveAutoLightCampfire = Value
-        task.spawn(function()
-            while ActiveAutoLightCampfire do
-                local campfire = workspace.Map.Campground.MainFire
-                if campfire and campfire:GetAttribute("IsLit") == false then
-                    task.spawn(function()
-                        RepStorage.RemoteEvents.LightCampfire:FireServer(campfire) -- 需根據實際遠程事件調整
-                    end)
-                end
-                wait(5)
-            end
-        end)
-    end
-})
-Automation:Toggle({
-    Title = "Auto Complete Quests",
-    Desc = "Auto complete active quests",
-    Default = false,
-    Save = true,
-    Callback = function(Value)
-        ActiveAutoCompleteQuests = Value
-        task.spawn(function()
-            while ActiveAutoCompleteQuests do
-                local questData = player:FindFirstChild("QuestData")
-                if questData then
-                    for _, quest in pairs(questData:GetChildren()) do
-                        local objective = quest:GetAttribute("Objective")
-                        if objective == "CollectItem" then
-                            local itemName = quest:GetAttribute("ItemName")
-                            for _, item in pairs(workspace.Items:GetChildren()) do
-                                if item.Name == itemName and item:IsA("Model") and item.PrimaryPart then
-                                    DragItem(item)
-                                end
-                            end
-                        elseif objective == "InteractNPC" then
-                            local npcName = quest:GetAttribute("NPCName")
-                            local npc = workspace.Characters:FindFirstChild(npcName)
-                            if npc and npc.PrimaryPart then
-                                player.Character.HumanoidRootPart.CFrame = npc.PrimaryPart.CFrame + Vector3.new(0, 5, 0)
-                                task.spawn(function()
-                                    RepStorage.RemoteEvents.InteractNPC:FireServer(npc) -- 需根據實際遠程事件調整
-                                end)
-                            end
+                for _, bunny in pairs(workspace.Map.Landmarks:GetChildren()) do
+                    if bunny:IsA("Model") and (bunny.Name == "Small Tree" or bunny.Name == "TreeBig1" or bunny.Name == "TreeBig2") and bunny.PrimaryPart then
+                        local distance = (bunny.PrimaryPart.Position - hrp.Position).Magnitude
+                        if distance <= DistanceForAutoChopTree then
+                            task.spawn(function()
+                                RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(bunny, weapon, 999, hrp.CFrame)
+                            end)
                         end
                     end
                 end
-                wait(2)
+                wait(0.01)
             end
         end)
     end
 })
 
--- Teleport Tab
-Teleport:Section({ Title = "Map Exploration", Style = "Card" })
-Teleport:Dropdown({
-    Title = "Teleport Locations",
-    Desc = "Select a location to teleport",
-    Options = {TeleportLocations[1].Name, TeleportLocations[2].Name, TeleportLocations[3].Name, TeleportLocations[4].Name},
-    Default = TeleportLocations[1].Name,
+-- Bring Item Tab - Items Collection
+BringItem:Section({ Title = "Item Collection" })
+local ItemLabel = BringItem:Paragraph({
+    Title = "Item Status",
+    Content = "Item Is In The Map: No (x0)"
+})
+local ItemInput = BringItem:Input({
+    Title = "Item Name",
+    Desc = "Enter item name to bring (use ESP for names)",
+    Placeholder = "Put a name only 1 for bring it on you(use the esp for the name)",
+    Default = "",
     Save = true,
-    Callback = function(Value)
-        local selected = Value[1]
-        for _, loc in pairs(TeleportLocations) do
-            if loc.Name == selected then
-                local pos = loc.Position()
-                if pos and player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                    player.Character.HumanoidRootPart.CFrame = pos
-                end
+    Callback = function(Text)
+        TextBoxText = Text
+        isInTheMap = "no"
+        HowManyItemCanShowUp = 0
+        for _, Obj in pairs(workspace.Items:GetChildren()) do
+            if Obj.Name == TextBoxText and Obj:IsA("Model") and Obj.PrimaryPart then
+                HowManyItemCanShowUp = HowManyItemCanShowUp + 1
+                isInTheMap = "yes"
             end
         end
+        ItemLabel:Set({
+            Title = "Item Status",
+            Content = "Item Is In The Map: " .. isInTheMap .. " (x" .. HowManyItemCanShowUp .. ")"
+        })
+    end
+})
+BringItem:Button({
+    Title = "Bring Named Item",
+    Desc = "Bring all the item with the name you choosed",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == TextBoxText and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Items",
+    Desc = "Bring all items to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                    wait(0.05)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Logs",
+    Desc = "Bring all logs to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Log" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Coal",
+    Desc = "Bring all coal to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Coal" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Fuel Canister",
+    Desc = "Bring all fuel canisters to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Fuel Canister" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Carrot",
+    Desc = "Bring all carrots to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Carrot" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Fuel",
+    Desc = "Bring all fuel items to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if (Obj.Name == "Log" or Obj.Name == "Fuel Canister" or Obj.Name == "Coal" or Obj.Name == "Oil Barrel") and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Scraps",
+    Desc = "Bring all scrap items to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if (Obj.Name == "Tyre" or Obj.Name == "Sheet Metal" or Obj.Name == "Broken Fan" or Obj.Name == "Bolt" or Obj.Name == "Old Radio" or Obj.Name == "UFO Junk" or Obj.Name == "UFO Scrap" or Obj.Name == "Broken Microwave") and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Ammo",
+    Desc = "Bring all ammo to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if (Obj.Name == "Rifle Ammo" or Obj.Name == "Revolver Ammo") and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Children",
+    Desc = "Bring all Lost Children to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Characters:GetChildren()) do
+                if (Obj.Name == "Lost Child" or Obj.Name == "Lost Child2" or Obj.Name == "Lost Child3" or Obj.Name == "Lost Child4") and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Foods",
+    Desc = "Bring all food items to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if (Obj.Name == "Cake" or Obj.Name == "Carrot" or Obj.Name == "Morsel" or Obj.Name == "Meat? Sandwich") and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Bandage",
+    Desc = "Bring all bandages to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Bandage" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Medkit",
+    Desc = "Bring all medkits to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "MedKit" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Old Radio",
+    Desc = "Bring all old radios to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Old Radio" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Tyre",
+    Desc = "Bring all tyres to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Tyre" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Broken Fan",
+    Desc = "Bring all broken fans to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Broken Fan" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Broken Microwave",
+    Desc = "Bring all broken microwaves to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Broken Microwave" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Bolt",
+    Desc = "Bring all bolts to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Bolt" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Sheet Metal",
+    Desc = "Bring all sheet metal to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Sheet Metal" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Seed Box",
+    Desc = "Bring all seed boxes to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Seed Box" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
+BringItem:Button({
+    Title = "Bring All Chair",
+    Desc = "Bring all chairs to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Chair" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
     end
 })
 
--- BringItem Tab (略，保持不变)
--- Discord Tab (略，保持不变)
--- Config Tab (略，保持不变)
+-- Automation Tab - Including Auto Tame Pet
+Automation:Section({ Title = "Advanced Automation" })
+local PetTameSlider = Automation:Slider({
+    Title = "Auto Tame Pet Distance",
+    Desc = "Set distance for auto taming pets",
+    Min = 5,
+    Max = 50,
+    Increment = 1,
+    Suffix = "Distance",
+    Default = 15,
+    Save = true,
+    Callback = function(Value)
+        DistanceForPetTame = Value
+    end
+})
+Automation:Toggle({
+    Title = "Auto Tame Pet",
+    Desc = "Automatically tame nearby animals with correct food (requires Taming Flute)",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveAutoTamePet = Value
+        autoTamePet()
+    end
+})
 
--- Character Added Handler
-player.CharacterAdded:Connect(function(char)
-    char:WaitForChild("Humanoid").WalkSpeed = OldSpeed
-    updateSpeed()
-end)
+-- Discord Tab
+Discord:Section({ Title = "Join Discord Server" })
+Discord:Button({
+    Title = "Copy Discord Invite",
+    Desc = "Copy the Discord invite link to clipboard",
+    Callback = function()
+        setclipboard("https://discord.gg/E2TqYRsRP4")
+        WindUI:Notify({
+            Title = "Ryzen Notify",
+            Icon = "rbxassetid://84501312005643",
+            Content = "✅ Discord Link Copied!",
+            Duration = 4
+        })
+    end
+})
+Discord:Button({
+    Title = "Open Discord",
+    Desc = "Open Discord in your browser (if supported)",
+    Callback = function()
+        loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/DiscordInvite/main/DiscordInvite.lua"))("E2TqYRsRP4")
+    end
+})
+
+-- Config Tab
+Config:Section({ Title = "Configuration" })
+Config:Toggle({
+    Title = "Active Distance for ESP",
+    Desc = "Show distance in ESP labels",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveDistanceEsp = Value
+    end
+})
+Config:Button({
+    Title = "Unload Script",
+    Desc = "Destroy the script interface",
+    Callback = function()
+        WindUI:Destroy()
+    end
+})
 
 -- Server Info Update Loop
 task.spawn(function()
@@ -1074,3 +1212,10 @@ task.spawn(function()
         })
     end
 end)
+
+WindUI:Notify({
+    Title = "Ryzen Hub",
+    Icon = "rbxassetid://84501312005643",
+    Content = "Script Loaded! Version: " .. version,
+    Duration = 5
+})
