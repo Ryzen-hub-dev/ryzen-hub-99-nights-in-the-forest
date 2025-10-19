@@ -166,7 +166,7 @@ ConfigTab:Slider({
     Callback = function(v) itemFarmDelay = v end
 })
 
-ConfigTab:Input({
+ConfigTab:Textbox({
     Title = "Discord Webhook URL",
     Desc = "For notifications (prestige, etc.)",
     Callback = function(v) webhookUrl = v end
