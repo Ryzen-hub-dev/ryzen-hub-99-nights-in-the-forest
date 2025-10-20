@@ -1,6 +1,6 @@
 local version = LRM_ScriptVersion and "v" .. table.concat(LRM_ScriptVersion:split(""), ".") or "Dev Version"
 local success, WindUI = pcall(function()
-    loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/UI-Libraries/main/WindUI/Source.lua"))()
+    return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 end)
 if not success or not WindUI then
     warn("Primary WindUI load failed, attempting fallback 1...")
@@ -227,7 +227,7 @@ if WindUI then
     repeat task.wait(0.1) until player.Character
 
     -- Ensure Window is fully initialized before creating tabs
-    task.wait(1.0)
+    task.wait(2.0)  -- Increased delay to ensure UI loads properly
     local Info = Window:Tab({ Title = "Info", Icon = "info" })
     local Player = Window:Tab({ Title = "Player", Icon = "user" })
     local Esp = Window:Tab({ Title = "ESP", Icon = "eye" })
@@ -255,6 +255,7 @@ if WindUI then
             Transparent = true,
             Theme = "Dark",
         })
+        task.wait(2.0)  -- Increased delay again
         Info = Window:Tab({ Title = "Info", Icon = "info" })
         Player = Window:Tab({ Title = "Player", Icon = "user" })
         Esp = Window:Tab({ Title = "ESP", Icon = "eye" })
@@ -465,7 +466,7 @@ if WindUI then
         end
     end
 
-    local function CreateEsp(Char, Color, Text, Parent, number)
+    local function CreateEsp(Ch, Color, Text, Parent, number)
         if not Char or Char:FindFirstChild("ESP") or Char:FindFirstChildOfClass("Highlight") then return end
         local highlight = Instance.new("Highlight")
         highlight.Name = "ESP_Highlight"
@@ -1165,6 +1166,7 @@ if WindUI then
             end
         end
     })
+    local infiniteJumpConnection
     Player:Toggle({
         Title = "Infinite Jump",
         Desc = "Enable/Disable infinite jump",
@@ -1172,19 +1174,24 @@ if WindUI then
         Save = true,
         Callback = function(Value)
             ActivateInfiniteJump = Value
-            while ActivateInfiniteJump do
-                local m = player:GetMouse()
-                m.KeyDown:Connect(function(k)
-                    if k:byte() == 32 then
-                        local humanoid = player.Character:FindFirstChildOfClass('Humanoid')
-                        if humanoid then
-                            humanoid:ChangeState('Jumping')
-                            task.wait()
-                            humanoid:ChangeState('Seated')
+            if Value then
+                if not infiniteJumpConnection then
+                    infiniteJumpConnection = mouse.KeyDown:Connect(function(k)
+                        if k:byte() == 32 then
+                            local humanoid = player.Character:FindFirstChildOfClass('Humanoid')
+                            if humanoid then
+                                humanoid:ChangeState('Jumping')
+                                task.wait()
+                                humanoid:ChangeState('Seated')
+                            end
                         end
-                    end
-                end)
-                task.wait(0.1)
+                    end)
+                end
+            else
+                if infiniteJumpConnection then
+                    infiniteJumpConnection:Disconnect()
+                    infiniteJumpConnection = nil
+                end
             end
         end
     })
