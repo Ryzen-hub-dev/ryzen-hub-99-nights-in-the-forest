@@ -1,6 +1,6 @@
 local version = LRM_ScriptVersion and "v" .. table.concat(LRM_ScriptVersion:split(""), ".") or "Dev Version"
 local success, WindUI = pcall(function()
-    return loadstring(game:HttpGet("  return loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/UI-Libraries/main/WindUI/Source.lua"))()
+    return loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/UI-Libraries/main/WindUI/Source.lua"))()
 end)
 if not success or not WindUI then
     warn("Primary WindUI load failed, attempting fallback 1...")
