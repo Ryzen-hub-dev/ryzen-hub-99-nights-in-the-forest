@@ -3,50 +3,61 @@ local success, WindUI = pcall(function()
     return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 end)
 if not success or not WindUI then
-    warn("Primary WindUI load failed, attempting fallback 1...")
+    warn("Primary WindUI load failed, attempting fallback...")
     success, WindUI = pcall(function()
         return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/main.lua"))()
     end)
     if not success or not WindUI then
-        warn("Fallback 1 failed, attempting fallback 2...")
-        success, WindUI = pcall(function()
-            return loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/UI-Libraries/main/WindUI/Source.lua"))()
-        end)
-        if not success or not WindUI then
-            warn("All WindUI load attempts failed. Check internet or executor compatibility.")
-            return
-        end
+        error("WindUI library failed to load. Check your internet connection or executor compatibility.")
+        return
     end
 end
 
-if WindUI then
-    WindUI:Popup({
-        Title = "Ryzen Hub",
-        Icon = "rbxassetid://84501312005643",
-        Content = "Join our Discord server",
-        Buttons = {
-            {
-                Title = "Copy Link",
-                Icon = "arrow-right",
-                Variant = "Primary",
-                Callback = function()
-                    local success, err = pcall(function() setclipboard("https://discord.gg/KG9ADqwT9Q") end)
-                    if success then
-                        pcall(function()
-                            game:GetService("StarterGui"):SetCore("SendNotification", {
-                                Title = "Discord Invite",
-                                Text = "Link Copied to Clipboard!",
-                                Icon = "rbxassetid://84501312005643",
-                                Duration = 4
-                            })
-                        end)
-                    end
-                end
-            }
+WindUI:Popup({
+    Title = "Ryzen Hub",
+    Icon = "rbxassetid://84501312005643",
+    Content = "Join our Discord server",
+    Buttons = {
+        {
+            Title = "Copy Link",
+            Icon = "arrow-right",
+            Variant = "Primary",
+            Callback = function()
+                setclipboard("https://discord.gg/KG9ADqwT9Q")
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "Discord Invite",
+                    Text = "Link Copied to Clipboard!",
+                    Icon = "rbxassetid://84501312005643",
+                    Duration = 4
+                })
+            end
         }
-    })
+    }
+})
 
-    local Window = WindUI:CreateWindow({
+local Window = WindUI:CreateWindow({
+    Title = "Ryzen Hub - 99 Nights In The Forest",
+    Icon = "rbxassetid://84501312005643",
+    Author = "99 Nights In The Forest | " .. version,
+    Folder = "RyzenHub_NITF",
+    Size = UDim2.fromOffset(400, 300),
+    Transparent = true,
+    Theme = "Dark",
+    Resizable = true,
+    SideBarWidth = 220,
+    Background = "",
+    BackgroundImageTransparency = 0.42,
+    HideSearchBar = true,
+    ScrollBarEnabled = false,
+    User = {
+        Enabled = true,
+        Anonymous = false,
+        Callback = function() end,
+    },
+})
+if not Window then
+    warn("Window creation failed. Attempting to reinitialize UI...")
+    Window = WindUI:CreateWindow({
         Title = "Ryzen Hub - 99 Nights In The Forest",
         Icon = "rbxassetid://84501312005643",
         Author = "99 Nights In The Forest | " .. version,
@@ -54,73 +65,48 @@ if WindUI then
         Size = UDim2.fromOffset(400, 300),
         Transparent = true,
         Theme = "Dark",
-        Resizable = true,
-        SideBarWidth = 220,
-        Background = "",
-        BackgroundImageTransparency = 0.42,
-        HideSearchBar = true,
-        ScrollBarEnabled = false,
-        User = {
-            Enabled = true,
-            Anonymous = false,
-            Callback = function() end,
-        },
     })
     if not Window then
-        warn("Window creation failed. Attempting to reinitialize UI...")
-        Window = WindUI:CreateWindow({
-            Title = "Ryzen Hub - 99 Nights In The Forest",
-            Icon = "rbxassetid://84501312005643",
-            Author = "99 Nights In The Forest | " .. version,
-            Folder = "RyzenHub_NITF",
-            Size = UDim2.fromOffset(400, 300),
-            Transparent = true,
-            Theme = "Dark",
-        })
-        if not Window then
-            warn("UI initialization failed after retry. Script cannot proceed.")
-            return
-        end
+        error("UI initialization failed. Script cannot proceed.")
+        return
     end
+end
 
-    -- DRAGGABLE GUI IMPLEMENTATION --
-    local UserInputService = game:GetService("UserInputService")
-    local dragging, dragInput, dragStart, startPos
+-- DRAGGABLE GUI IMPLEMENTATION --
+local UserInputService = game:GetService("UserInputService")
+local dragging, dragInput, dragStart, startPos
 
-    if Window.MainFrame then
-        Window.MainFrame.InputBegan:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseButton1 then
-                dragging = true
-                dragStart = input.Position
-                startPos = Window.MainFrame.Position
+Window.MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+        dragging = true
+        dragStart = input.Position
+        startPos = Window.MainFrame.Position
 
-                input.Changed:Connect(function()
-                    if input.UserInputState == Enum.UserInputState.End then
-                        dragging = false
-                    end
-                end)
-            end
-        end)
-
-        Window.MainFrame.InputChanged:Connect(function(input)
-            if input.UserInputType == Enum.UserInputType.MouseMovement then
-                dragInput = input
-            end
-        end)
-
-        UserInputService.InputChanged:Connect(function(input)
-            if input == dragInput and dragging then
-                local delta = input.Position - dragStart
-                Window.MainFrame.Position = UDim2.new(
-                    startPos.X.Scale,
-                    startPos.X.Offset + delta.X,
-                    startPos.Y.Scale,
-                    startPos.Y.Offset + delta.Y
-                )
+        input.Changed:Connect(function()
+            if input.UserInputState == Enum.UserInputState.End then
+                dragging = false
             end
         end)
     end
+end)
 
+Window.MainFrame.InputChanged:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseMovement then
+        dragInput = input
+    end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+    if input == dragInput and dragging then
+        local delta = input.Position - dragStart
+        Window.MainFrame.Position = UDim2.new(
+            startPos.X.Scale,
+            startPos.X.Offset + delta.X,
+            startPos.Y.Scale,
+            startPos.Y.Offset + delta.Y
+        )
+    end
+end)
     local Players = game:GetService("Players")
     local RepStorage = game:GetService("ReplicatedStorage")
     local RunService = game:GetService("RunService")
