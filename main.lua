@@ -1,3 +1,6 @@
+-- 仅在 99 Nights In The Forest (PlaceId: 14685809394) 运行
+if game.PlaceId ~= 14685809394 then return end
+
 local version = LRM_ScriptVersion and "v" .. table.concat(LRM_ScriptVersion:split(""), ".") or "Dev Version"
 local success, WindUI = pcall(function()
     return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
@@ -97,16 +100,16 @@ if WindUI then
         end
     end
 
-    -- DRAGGABLE GUI IMPLEMENTATION --
+    -- 修复拖动功能，确保绑定到正确的 UI 框架
     local UserInputService = game:GetService("UserInputService")
     local dragging, dragInput, dragStart, startPos
-
-    if Window.MainFrame then
-        Window.MainFrame.InputBegan:Connect(function(input)
+    local mainFrame = Window.MainFrame or Window:GetMainFrame() -- 尝试获取主框架
+    if mainFrame then
+        mainFrame.InputBegan:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseButton1 then
                 dragging = true
                 dragStart = input.Position
-                startPos = Window.MainFrame.Position
+                startPos = mainFrame.Position
 
                 input.Changed:Connect(function()
                     if input.UserInputState == Enum.UserInputState.End then
@@ -116,7 +119,7 @@ if WindUI then
             end
         end)
 
-        Window.MainFrame.InputChanged:Connect(function(input)
+        mainFrame.InputChanged:Connect(function(input)
             if input.UserInputType == Enum.UserInputType.MouseMovement then
                 dragInput = input
             end
@@ -125,7 +128,7 @@ if WindUI then
         UserInputService.InputChanged:Connect(function(input)
             if input == dragInput and dragging then
                 local delta = input.Position - dragStart
-                Window.MainFrame.Position = UDim2.new(
+                mainFrame.Position = UDim2.new(
                     startPos.X.Scale,
                     startPos.X.Offset + delta.X,
                     startPos.Y.Scale,
@@ -133,6 +136,8 @@ if WindUI then
                 )
             end
         end)
+    else
+        warn("MainFrame not found. Drag functionality may not work.")
     end
 
     local Players = game:GetService("Players")
@@ -227,7 +232,7 @@ if WindUI then
     repeat task.wait(0.1) until player.Character
 
     -- Ensure Window is fully initialized before creating tabs
-    task.wait(5.0) -- Increased delay to 5 seconds for better loading
+    task.wait(5.0)
     local Info = Window:Tab({ Title = "Info", Icon = "info" })
     local Player = Window:Tab({ Title = "Player", Icon = "user" })
     local Esp = Window:Tab({ Title = "ESP", Icon = "eye" })
@@ -255,7 +260,7 @@ if WindUI then
             Transparent = true,
             Theme = "Dark",
         })
-        task.wait(5.0) -- Increased delay again to 5 seconds
+        task.wait(5.0)
         Info = Window:Tab({ Title = "Info", Icon = "info" })
         Player = Window:Tab({ Title = "Player", Icon = "user" })
         Esp = Window:Tab({ Title = "ESP", Icon = "eye" })
@@ -1692,7 +1697,7 @@ if WindUI then
                 if obj.Name == "Chair" and obj:IsA("Model") and obj.PrimaryPart then DragItem(obj) end
             end
         end
-    })
+        })
     BringItem:Button({
         Title = "Bring All Table",
         Desc = "Bring all tables to you",
@@ -1702,26 +1707,46 @@ if WindUI then
             end
         end
     })
-    BringItem:Button({
-        Title = "Bring All Bed",
-        Desc = "Bring all beds to you",
-        Callback = function()
-            for _, obj in pairs(workspace.Items:GetChildren()) do
-                if obj.Name == "Bed" and obj:IsA("Model") and obj.PrimaryPart then DragItem(obj) end
+    BringItem:Slider({
+        Title = "Distance For Auto Collect",
+        Desc = "Set distance for auto-collecting items",
+        Range = {Min = 10, Max = 50, Increment = 1},
+        CurrentValue = 30,
+        Suffix = "Distance",
+        Save = true,
+        Callback = function(Value)
+            DistanceForAutoCollect = Value
+        end
+    })
+    BringItem:Toggle({
+        Title = "Auto Collect",
+        Desc = "Automatically collect nearby items",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            while Value do
+                local character = player.Character or player.CharacterAdded:Wait()
+                local hrp = character:WaitForChild("HumanoidRootPart")
+                for _, item in pairs(workspace.Items:GetChildren()) do
+                    if item:IsA("Model") and item.PrimaryPart then
+                        local distance = (item.PrimaryPart.Position - hrp.Position).Magnitude
+                        if distance <= DistanceForAutoCollect then DragItem(item) end
+                    end
+                end
+                task.wait(0.5)
             end
         end
     })
 
-    Automation:Section({ Title = "Automation Settings" })
-    Automation:Slider({
-        Title = "Sapling Distance",
-        Desc = "Set distance for sapling placement",
-        Range = {Min = 5, Max = 50, Increment = 1},
-        CurrentValue = 20,
-        Suffix = "Distance",
+    Automation:Section({ Title = "Automation Features" })
+    Automation:Toggle({
+        Title = "Auto Place Saplings",
+        Desc = "Automatically plant saplings around you",
+        Default = false,
         Save = true,
         Callback = function(Value)
-            DistanceForSaplingPlace = Value
+            ActiveAutoPlaceSapling = Value
+            autoPlantSaplings()
         end
     })
     Automation:Slider({
@@ -1739,19 +1764,21 @@ if WindUI then
         Title = "Sapling Shape",
         Options = {"Circle", "Square"},
         CurrentOption = "Circle",
+        MultiSelect = false,
         Save = true,
         Callback = function(Option)
             SaplingShape = Option
         end
     })
-    Automation:Toggle({
-        Title = "Auto Place Saplings",
-        Desc = "Automatically plant saplings around player",
-        Default = false,
+    Automation:Slider({
+        Title = "Distance For Sapling Place",
+        Desc = "Set distance for sapling placement",
+        Range = {Min = 5, Max = 30, Increment = 1},
+        CurrentValue = 20,
+        Suffix = "Distance",
         Save = true,
         Callback = function(Value)
-            ActiveAutoPlaceSapling = Value
-            autoPlantSaplings()
+            DistanceForSaplingPlace = Value
         end
     })
     Automation:Toggle({
@@ -1762,6 +1789,137 @@ if WindUI then
         Callback = function(Value)
             ActiveAutoTamePet = Value
             autoTamePet()
+        end
+    })
+    Automation:Slider({
+        Title = "Distance For Pet Tame",
+        Desc = "Set distance for pet taming",
+        Range = {Min = 5, Max = 30, Increment = 1},
+        CurrentValue = 15,
+        Suffix = "Distance",
+        Save = true,
+        Callback = function(Value)
+            DistanceForPetTame = Value
+        end
+    })
+    Automation:Toggle({
+        Title = "Auto Survive Days",
+        Desc = "Automatically manage campfire and food",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveAutoSurviveDays = Value
+            autoSurviveDays()
+        end
+    })
+    Automation:Toggle({
+        Title = "Auto Cook Food",
+        Desc = "Automatically cook food at campfire",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveAutoCookFood = Value
+            autoCookFood()
+        end
+    })
+    Automation:Toggle({
+        Title = "Auto Eat Food",
+        Desc = "Automatically eat food when health is low",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveAutoEatFood = Value
+            autoEatFood()
+        end
+    })
+    Automation:Toggle({
+        Title = "Auto Missing Foods",
+        Desc = "Automatically collect food if less than 3",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveAutoMissingFoods = Value
+            autoMissingFoods()
+        end
+    })
+    Automation:Toggle({
+        Title = "Auto Bring Ores",
+        Desc = "Automatically collect ores and coal",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveAutoBringOres = Value
+            autoBringOres()
+        end
+    })
+    Automation:Toggle({
+        Title = "Auto TP Enemies",
+        Desc = "Teleport all enemies to you",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveAutoTpEnemies = Value
+            autoTpEnemies()
+        end
+    })
+    Automation:Toggle({
+        Title = "Auto TP Trees",
+        Desc = "Teleport all trees to you",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveAutoTpTrees = Value
+            autoTpTrees()
+        end
+    })
+    Automation:Toggle({
+        Title = "Stun Mobs",
+        Desc = "Disable mob movement",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveStunMobs = Value
+            stunMobs()
+        end
+    })
+    Automation:Toggle({
+        Title = "Auto Minigame Taming",
+        Desc = "Automatically tame pets via minigames",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveAutoMinigameTaming = Value
+            autoMinigameTaming()
+        end
+    })
+    Automation:Toggle({
+        Title = "Auto Feed Taming",
+        Desc = "Automatically feed tamed animals",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveAutoFeedTaming = Value
+            autoFeedTaming()
+        end
+    })
+    Automation:Toggle({
+        Title = "Hitbox Expander",
+        Desc = "Expand hitboxes for easier interaction",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveHitboxExpander = Value
+            hitboxExpander()
+        end
+    })
+    Automation:Toggle({
+        Title = "Full Map Loader",
+        Desc = "Make map semi-transparent",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveFullMapLoader = Value
+            fullMapLoader()
         end
     })
     Automation:Toggle({
@@ -1786,7 +1944,7 @@ if WindUI then
     })
     Automation:Toggle({
         Title = "Auto Time Machine",
-        Desc = "Skip to next day",
+        Desc = "Automatically skip night",
         Default = false,
         Save = true,
         Callback = function(Value)
@@ -1826,7 +1984,7 @@ if WindUI then
     })
     Automation:Toggle({
         Title = "Better Auto Cast",
-        Desc = "Improved auto casting with CFrame",
+        Desc = "Improved auto spell casting",
         Default = false,
         Save = true,
         Callback = function(Value)
@@ -1845,8 +2003,8 @@ if WindUI then
         end
     })
     Automation:Toggle({
-        Title = "Instant Open Chest",
-        Desc = "Instantly open chests",
+        Title = "Insta Open Chest",
+        Desc = "Instantly open nearby chests",
         Default = false,
         Save = true,
         Callback = function(Value)
@@ -1856,7 +2014,7 @@ if WindUI then
     })
     Automation:Toggle({
         Title = "Create Safe Zone",
-        Desc = "Create a safe area at campfire",
+        Desc = "Create a safe zone at campfire",
         Default = false,
         Save = true,
         Callback = function(Value)
@@ -1926,7 +2084,7 @@ if WindUI then
     })
     Automation:Toggle({
         Title = "Auto Repair Tools",
-        Desc = "Automatically repair tools with repair kits",
+        Desc = "Automatically repair tools",
         Default = false,
         Save = true,
         Callback = function(Value)
@@ -1936,7 +2094,7 @@ if WindUI then
     })
     Automation:Toggle({
         Title = "Auto Upgrade Tools",
-        Desc = "Automatically upgrade tools with upgrade stones",
+        Desc = "Automatically upgrade tools",
         Default = false,
         Save = true,
         Callback = function(Value)
@@ -1946,7 +2104,7 @@ if WindUI then
     })
     Automation:Toggle({
         Title = "Auto Build Structures",
-        Desc = "Automatically build structures with logs",
+        Desc = "Automatically build structures",
         Default = false,
         Save = true,
         Callback = function(Value)
@@ -1956,7 +2114,7 @@ if WindUI then
     })
     Automation:Toggle({
         Title = "Auto Fish",
-        Desc = "Automatically fish with rod",
+        Desc = "Automatically fish",
         Default = false,
         Save = true,
         Callback = function(Value)
@@ -1966,7 +2124,7 @@ if WindUI then
     })
     Automation:Toggle({
         Title = "Auto Hunt Animals",
-        Desc = "Automatically hunt deer and boars",
+        Desc = "Automatically hunt animals",
         Default = false,
         Save = true,
         Callback = function(Value)
@@ -1985,7 +2143,7 @@ if WindUI then
         end
     })
 
-    Teleport:Section({ Title = "Teleport Options" })
+    Teleport:Section({ Title = "Teleport Locations" })
     Teleport:Button({
         Title = "Teleport to Campfire",
         Desc = "Teleport to main campfire",
@@ -1999,8 +2157,11 @@ if WindUI then
         Title = "Teleport to Snowy Area",
         Desc = "Teleport to snowy area",
         Callback = function()
-            if player.Character and player.Character:WaitForChild("HumanoidRootPart") and workspace.Map.SnowyArea and workspace.Map.SnowyArea.PrimaryPart then
-                player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.SnowyArea.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+            if player.Character and player.Character:WaitForChild("HumanoidRootPart") and workspace.Map:FindFirstChild("SnowyArea") then
+                local snowyPart = workspace.Map.SnowyArea:FindFirstChild("SpawnPoint") or workspace.Map.SnowyArea:FindFirstChildWhichIsA("Part")
+                if snowyPart then
+                    player.Character:WaitForChild("HumanoidRootPart").CFrame = snowyPart.CFrame + Vector3.new(0, 10, 0)
+                end
             end
         end
     })
@@ -2008,24 +2169,30 @@ if WindUI then
         Title = "Teleport to Forest",
         Desc = "Teleport to forest area",
         Callback = function()
-            if player.Character and player.Character:WaitForChild("HumanoidRootPart") and workspace.Map.Forest and workspace.Map.Forest.PrimaryPart then
-                player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.Forest.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+            if player.Character and player.Character:WaitForChild("HumanoidRootPart") and workspace.Map:FindFirstChild("Forest") then
+                local forestPart = workspace.Map.Forest:FindFirstChild("SpawnPoint") or workspace.Map.Forest:FindFirstChildWhichIsA("Part")
+                if forestPart then
+                    player.Character:WaitForChild("HumanoidRootPart").CFrame = forestPart.CFrame + Vector3.new(0, 10, 0)
+                end
             end
         end
     })
 
     Discord:Section({ Title = "Community" })
     Discord:Button({
-        Title = "Copy Discord Link",
+        Title = "Join Discord",
         Desc = "Join our Discord server",
         Callback = function()
             local success, err = pcall(function() setclipboard("https://discord.gg/KG9ADqwT9Q") end)
             if success then
-                WindUI:Notify({
-                    Title = "Discord Invite",
-                    Content = "Link copied to clipboard!",
-                    Duration = 4
-                })
+                pcall(function()
+                    game:GetService("StarterGui"):SetCore("SendNotification", {
+                        Title = "Discord Invite",
+                        Text = "Link Copied to Clipboard!",
+                        Icon = "rbxassetid://84501312005643",
+                        Duration = 4
+                    })
+                end)
             end
         end
     })
@@ -2035,7 +2202,7 @@ if WindUI then
         Title = "Save Config",
         Desc = "Save current settings",
         Callback = function()
-            WindUI:Save()
+            Window:SaveConfig()
             WindUI:Notify({
                 Title = "Config Saved",
                 Content = "Settings have been saved successfully!",
@@ -2047,7 +2214,7 @@ if WindUI then
         Title = "Load Config",
         Desc = "Load saved settings",
         Callback = function()
-            WindUI:Load()
+            Window:LoadConfig()
             WindUI:Notify({
                 Title = "Config Loaded",
                 Content = "Settings have been loaded successfully!",
@@ -2059,7 +2226,7 @@ if WindUI then
         Title = "Reset Config",
         Desc = "Reset all settings to default",
         Callback = function()
-            WindUI:Reset()
+            Window:ResetConfig()
             WindUI:Notify({
                 Title = "Config Reset",
                 Content = "Settings have been reset to default!",
@@ -2068,83 +2235,35 @@ if WindUI then
         end
     })
 
-    -- Cleanup function for all toggles
-    local function cleanup()
-        if ActivateFly then
-            if UserInputService.TouchEnabled then
-                UnMobileFly()
-            else
-                NOFLY()
-            end
-        end
-        ActiveEspItems, ActiveDistanceEsp, ActiveEspEnemy, ActiveEspChildren, ActiveEspPeltTrader = false, false, false, false, false
-        ActivateFly, AlrActivatedFlyPC, ActiveNoCooldownPrompt, ActiveNoFog = false, false, false, false
-        ActiveAutoChopTree, ActiveKillAura, ActivateInfiniteJump, ActiveNoclip = false, false, false, false
-        ActiveSpeedBoost = false
-        ActiveInfHealth, ActiveFreeCamo, ActiveAutoSurviveDays, ActiveAutoCookFood = false, false, false, false
-        ActiveAutoEatFood, ActiveAutoMissingFoods, ActiveAutoBringOres, ActiveAutoTpEnemies = false, false, false, false
-        ActiveAutoTpTrees, ActiveStunMobs, ActiveAutoMinigameTaming, ActiveAutoFeedTaming = false, false, false, false
-        ActiveHitboxExpander, ActiveFullMapLoader, ActiveAutoEatStew, ActiveAntiAfk = false, false, false, false
-        ActiveAutoTimeMachine, ActiveAutoCast, ActiveAutoMinigames, ActiveAlwaysBiggerBar = false, false, false, false
-        ActiveBetterAutoCast, ActiveHipHeight, ActiveAutoFarmSnowySmallTree, ActiveInstaOpenChest = false, false, false, false
-        ActiveCreateSafeZone, ActiveTpToSafeZoneLowHP, ActiveAutoCollectCandles, ActiveOpenChestsForCandles = false, false, false, false
-        ActiveLightHouses, ActiveCollectCandies, ActiveLootHouses, ActiveAutoRepairTools = false, false, false, false
-        ActiveAutoUpgradeTools, ActiveAutoBuildStructures, ActiveAutoFish, ActiveAutoHuntAnimals = false, false, false, false
-        ActiveAutoCraftItems, ActiveAutoPlaceSapling, ActiveTreeAura, ActiveAutoTamePet = false, false, false, false
-        if player.Character then
-            player.Character.Humanoid.WalkSpeed = OldSpeed
-            if player.Character:FindFirstChildOfClass("Humanoid") then
-                player.Character:FindFirstChildOfClass("Humanoid").MaxHealth = 100
-                player.Character:FindFirstChildOfClass("Humanoid").Health = 100
-            end
-        end
-        for _, obj in pairs(workspace.Items:GetDescendants()) do
-            if obj:IsA("Highlight") or obj:IsA("BillboardGui") then obj:Destroy() end
-        end
-        for _, obj in pairs(workspace.Characters:GetDescendants()) do
-            if obj:IsA("Highlight") or obj:IsA("BillboardGui") then obj:Destroy() end
-        end
-        if workspace:FindFirstChild("SafeZone") then workspace.SafeZone:Destroy() end
-        Lighting.FogEnd = 100
-        Lighting.Brightness = 1
-        Lighting.Ambient = Color3.new(0.2, 0.2, 0.2)
-        for _, prompt in pairs(workspace:GetDescendants()) do
-            if prompt:IsA("ProximityPrompt") and prompt.HoldDuration == 0 then
-                prompt.HoldDuration = 1
-            end
-        end
-        if player.Character then
-            for _, part in pairs(player.Character:GetDescendants()) do
-                if part:IsA("BasePart") and not part.CanCollide then part.CanCollide = true end
-            end
-        end
-    end
-
-    -- Handle character removal
-    player.CharacterRemoving:Connect(function()
-        cleanup()
-    end)
-
-    -- Initialize UI and start update loops
-    Window:Init()
-
-    -- Update server info periodically
+    -- Update Server Info
     spawn(function()
-        while true do
-            local info = getServerInfo()
+        while task.wait(5) do
+            local serverInfo = getServerInfo()
             ParagraphInfoServer:Set({
                 Title = "Info",
-                Content = "PlaceId: " .. info.PlaceId .. "\nJobId: " .. info.JobId .. "\nPlayers: " .. info.CurrentPlayers .. "/" .. info.MaxPlayers .. "\nStudio: " .. tostring(info.IsStudio)
+                Content = "PlaceId: " .. serverInfo.PlaceId .. "\nJobId: " .. serverInfo.JobId .. "\nPlayers: " .. serverInfo.CurrentPlayers .. "/" .. serverInfo.MaxPlayers .. "\nStudio: " .. tostring(serverInfo.IsStudio)
             })
-            task.wait(5)
         end
     end)
 
-    -- Update house stats periodically
+    -- Update House Stats
     spawn(function()
-        while true do
+        while task.wait(10) do
             updateHouseStats()
-            task.wait(10)
+            if ActiveLightHouses then
+                WindUI:Notify({
+                    Title = "House Stats",
+                    Content = "Loaded: " .. HouseStats.loaded .. " | Missing: " .. HouseStats.missing .. " | Lighted: " .. HouseStats.lighted,
+                    Duration = 5
+                })
+            end
         end
     end)
+
+    -- Initial UI Notification
+    WindUI:Notify({
+        Title = "Ryzen Hub Loaded",
+        Content = "Successfully loaded Ryzen Hub for 99 Nights In The Forest!",
+        Duration = 5
+    })
 end
