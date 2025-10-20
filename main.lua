@@ -3,61 +3,57 @@ local success, WindUI = pcall(function()
     return loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 end)
 if not success or not WindUI then
-    warn("Primary WindUI load failed, attempting fallback...")
+    warn("Primary WindUI load failed, attempting fallback 1...")
     success, WindUI = pcall(function()
         return loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/main.lua"))()
     end)
     if not success or not WindUI then
-        error("WindUI library failed to load. Check your internet connection or executor compatibility.")
-        return
+        warn("Fallback 1 failed, attempting fallback 2...")
+        success, WindUI = pcall(function()
+            return loadstring(game:HttpGet("https://raw.githubusercontent.com/RegularVynixu/UI-Libraries/main/WindUI/Source.lua"))()
+        end)
+        if not success or not WindUI then
+            warn("All WindUI load attempts failed. Check internet or executor compatibility.")
+            pcall(function()
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "Error",
+                    Text = "UI Library failed to load. Check console for details.",
+                    Duration = 10
+                })
+            end)
+            return
+        end
     end
 end
 
-WindUI:Popup({
-    Title = "Ryzen Hub",
-    Icon = "rbxassetid://84501312005643",
-    Content = "Join our Discord server",
-    Buttons = {
-        {
-            Title = "Copy Link",
-            Icon = "arrow-right",
-            Variant = "Primary",
-            Callback = function()
-                setclipboard("https://discord.gg/KG9ADqwT9Q")
-                game:GetService("StarterGui"):SetCore("SendNotification", {
-                    Title = "Discord Invite",
-                    Text = "Link Copied to Clipboard!",
-                    Icon = "rbxassetid://84501312005643",
-                    Duration = 4
-                })
-            end
+if WindUI then
+    WindUI:Popup({
+        Title = "Ryzen Hub",
+        Icon = "rbxassetid://84501312005643",
+        Content = "Join our Discord server",
+        Buttons = {
+            {
+                Title = "Copy Link",
+                Icon = "arrow-right",
+                Variant = "Primary",
+                Callback = function()
+                    local success, err = pcall(function() setclipboard("https://discord.gg/KG9ADqwT9Q") end)
+                    if success then
+                        pcall(function()
+                            game:GetService("StarterGui"):SetCore("SendNotification", {
+                                Title = "Discord Invite",
+                                Text = "Link Copied to Clipboard!",
+                                Icon = "rbxassetid://84501312005643",
+                                Duration = 4
+                            })
+                        end)
+                    end
+                end
+            }
         }
-    }
-})
+    })
 
-local Window = WindUI:CreateWindow({
-    Title = "Ryzen Hub - 99 Nights In The Forest",
-    Icon = "rbxassetid://84501312005643",
-    Author = "99 Nights In The Forest | " .. version,
-    Folder = "RyzenHub_NITF",
-    Size = UDim2.fromOffset(400, 300),
-    Transparent = true,
-    Theme = "Dark",
-    Resizable = true,
-    SideBarWidth = 220,
-    Background = "",
-    BackgroundImageTransparency = 0.42,
-    HideSearchBar = true,
-    ScrollBarEnabled = false,
-    User = {
-        Enabled = true,
-        Anonymous = false,
-        Callback = function() end,
-    },
-})
-if not Window then
-    warn("Window creation failed. Attempting to reinitialize UI...")
-    Window = WindUI:CreateWindow({
+    local Window = WindUI:CreateWindow({
         Title = "Ryzen Hub - 99 Nights In The Forest",
         Icon = "rbxassetid://84501312005643",
         Author = "99 Nights In The Forest | " .. version,
@@ -65,48 +61,80 @@ if not Window then
         Size = UDim2.fromOffset(400, 300),
         Transparent = true,
         Theme = "Dark",
+        Resizable = true,
+        SideBarWidth = 220,
+        Background = "",
+        BackgroundImageTransparency = 0.42,
+        HideSearchBar = true,
+        ScrollBarEnabled = false,
+        User = {
+            Enabled = true,
+            Anonymous = false,
+            Callback = function() end,
+        },
     })
     if not Window then
-        error("UI initialization failed. Script cannot proceed.")
-        return
+        warn("Window creation failed. Attempting to reinitialize UI...")
+        Window = WindUI:CreateWindow({
+            Title = "Ryzen Hub - 99 Nights In The Forest",
+            Icon = "rbxassetid://84501312005643",
+            Author = "99 Nights In The Forest | " .. version,
+            Folder = "RyzenHub_NITF",
+            Size = UDim2.fromOffset(400, 300),
+            Transparent = true,
+            Theme = "Dark",
+        })
+        if not Window then
+            warn("UI initialization failed after retry. Script cannot proceed.")
+            pcall(function()
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "Error",
+                    Text = "UI initialization failed. Check console for details.",
+                    Duration = 10
+                })
+            end)
+            return
+        end
     end
-end
 
--- DRAGGABLE GUI IMPLEMENTATION --
-local UserInputService = game:GetService("UserInputService")
-local dragging, dragInput, dragStart, startPos
+    -- DRAGGABLE GUI IMPLEMENTATION --
+    local UserInputService = game:GetService("UserInputService")
+    local dragging, dragInput, dragStart, startPos
 
-Window.MainFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
-        dragging = true
-        dragStart = input.Position
-        startPos = Window.MainFrame.Position
+    if Window.MainFrame then
+        Window.MainFrame.InputBegan:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseButton1 then
+                dragging = true
+                dragStart = input.Position
+                startPos = Window.MainFrame.Position
 
-        input.Changed:Connect(function()
-            if input.UserInputState == Enum.UserInputState.End then
-                dragging = false
+                input.Changed:Connect(function()
+                    if input.UserInputState == Enum.UserInputState.End then
+                        dragging = false
+                    end
+                end)
+            end
+        end)
+
+        Window.MainFrame.InputChanged:Connect(function(input)
+            if input.UserInputType == Enum.UserInputType.MouseMovement then
+                dragInput = input
+            end
+        end)
+
+        UserInputService.InputChanged:Connect(function(input)
+            if input == dragInput and dragging then
+                local delta = input.Position - dragStart
+                Window.MainFrame.Position = UDim2.new(
+                    startPos.X.Scale,
+                    startPos.X.Offset + delta.X,
+                    startPos.Y.Scale,
+                    startPos.Y.Offset + delta.Y
+                )
             end
         end)
     end
-end)
 
-Window.MainFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
-        dragInput = input
-    end
-end)
-
-UserInputService.InputChanged:Connect(function(input)
-    if input == dragInput and dragging then
-        local delta = input.Position - dragStart
-        Window.MainFrame.Position = UDim2.new(
-            startPos.X.Scale,
-            startPos.X.Offset + delta.X,
-            startPos.Y.Scale,
-            startPos.Y.Offset + delta.Y
-        )
-    end
-end)
     local Players = game:GetService("Players")
     local RepStorage = game:GetService("ReplicatedStorage")
     local RunService = game:GetService("RunService")
@@ -193,10 +221,10 @@ end)
     }
     local activeTamingAnimals = {}
 
-    local safeZonePos = workspace.Map.Campground.MainFire.PrimaryPart.Position + Vector3.new(0, 5, 0)
+    local safeZonePos = workspace.Map.Campground.MainFire and workspace.Map.Campground.MainFire.PrimaryPart and workspace.Map.Campground.MainFire.PrimaryPart.Position + Vector3.new(0, 5, 0) or Vector3.new(0, 0, 0)
 
     -- Wait for character to load
-    repeat wait() until player.Character
+    repeat task.wait(0.1) until player.Character
 
     -- Ensure Window is fully initialized before creating tabs
     task.wait(1.0)
@@ -238,6 +266,13 @@ end)
         Config = Window:Tab({ Title = "Config", Icon = "file-cog" })
         if not (Info and Player and Esp and Game and BringItem and Automation and Teleport and Discord and Config) then
             warn("Tab initialization failed after retry. Script cannot continue.")
+            pcall(function()
+                game:GetService("StarterGui"):SetCore("SendNotification", {
+                    Title = "Error",
+                    Text = "Tab initialization failed. Check console for details.",
+                    Duration = 10
+                })
+            end)
             return
         end
     end
@@ -248,7 +283,7 @@ end)
                 if tool:IsA("Tool") and tool:FindFirstChild("Handle") then
                     local args = {tool, Item}
                     pcall(function() RepStorage:WaitForChild("RemoteEvents"):WaitForChild("RequestBagStoreItem"):InvokeServer(unpack(args)) end)
-                    wait(0.1)
+                    task.wait(0.1)
                 end
             end
         end)
@@ -256,7 +291,7 @@ end)
 
     local function getServerInfo()
         local playerCount = #Players:GetPlayers()
-        local maxPlayers = Players.MaxPlayers
+        local maxPlayers = Players.MaxPlayers or 100
         local isStudio = RunService:IsStudio()
         return {
             PlaceId = game.PlaceId,
@@ -268,8 +303,8 @@ end)
     end
 
     local function sFLY(vfly)
-        repeat wait() until player.Character and player.Character:WaitForChild("HumanoidRootPart") and player.Character:FindFirstChildOfClass("Humanoid")
-        repeat wait() until mouse
+        repeat task.wait() until player.Character and player.Character:WaitForChild("HumanoidRootPart") and player.Character:FindFirstChildOfClass("Humanoid")
+        repeat task.wait() until mouse
         if flyKeyDown or flyKeyUp then flyKeyDown:Disconnect() flyKeyUp:Disconnect() end
 
         local T = player.Character:WaitForChild("HumanoidRootPart")
@@ -289,7 +324,7 @@ end)
             BV.Velocity = Vector3.new(0, 0, 0)
             BV.MaxForce = Vector3.new(9e9, 9e9, 9e9)
             spawn(function()
-                repeat wait()
+                repeat task.wait()
                     if not vfly and player.Character:FindFirstChildOfClass('Humanoid') then
                         player.Character:FindFirstChildOfClass('Humanoid').PlatformStand = true
                     end
@@ -472,7 +507,7 @@ end)
                         label.Text = Text
                     end
                 end
-                wait(0.1)
+                task.wait(0.1)
             end
         end)
     end
@@ -493,7 +528,7 @@ end)
             if player.Character and player.Character:FindFirstChild("Humanoid") then
                 player.Character.Humanoid.Health = player.Character.Humanoid.MaxHealth
             end
-            wait(0.1)
+            task.wait(0.1)
         end
     end
 
@@ -502,7 +537,7 @@ end)
             Lighting.FogEnd = 9999
             Lighting.Brightness = 2
             Lighting.Ambient = Color3.new(1, 1, 1)
-            wait(1)
+            task.wait(1)
         end
         Lighting.FogEnd = 100
         Lighting.Brightness = 1
@@ -514,13 +549,13 @@ end)
             local campfire = workspace.Map.Campground:FindFirstChild("Campfire")
             if campfire and campfire:FindFirstChild("FuelValue") and campfire.FuelValue.Value < 50 then
                 local fuel = player.Backpack:FindFirstChild("Log") or player.Backpack:FindFirstChild("Coal")
-                if fuel then RepStorage.RemoteEvents.AddFuel:FireServer(campfire, fuel) end
+                if fuel then pcall(function() RepStorage.RemoteEvents.AddFuel:FireServer(campfire, fuel) end) end
             end
             if player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health < 75 then
                 local food = player.Backpack:FindFirstChild("CookedMeat") or player.Backpack:FindFirstChild("Carrot")
-                if food then RepStorage.RemoteEvents.ConsumeItem:FireServer(food) end
+                if food then pcall(function() RepStorage.RemoteEvents.ConsumeItem:FireServer(food) end) end
             end
-            wait(10)
+            task.wait(10)
         end
     end
 
@@ -528,8 +563,8 @@ end)
         while ActiveAutoCookFood do
             local campfire = workspace.Map.Campground:FindFirstChild("Campfire")
             local rawFood = player.Backpack:FindFirstChild("RawMeat") or player.Backpack:FindFirstChild("Carrot")
-            if campfire and rawFood then RepStorage.RemoteEvents.CookItem:FireServer(rawFood, campfire) end
-            wait(5)
+            if campfire and rawFood then pcall(function() RepStorage.RemoteEvents.CookItem:FireServer(rawFood, campfire) end) end
+            task.wait(5)
         end
     end
 
@@ -537,9 +572,9 @@ end)
         while ActiveAutoEatFood do
             if player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health < 90 then
                 local food = player.Backpack:FindFirstChild("CookedMeat") or player.Backpack:FindFirstChild("Carrot")
-                if food then RepStorage.RemoteEvents.ConsumeItem:FireServer(food) end
+                if food then pcall(function() RepStorage.RemoteEvents.ConsumeItem:FireServer(food) end) end
             end
-            wait(15)
+            task.wait(15)
         end
     end
 
@@ -554,7 +589,7 @@ end)
                     if (item.Name == "Carrot" or item.Name == "RawMeat") and item:IsA("Model") and item.PrimaryPart then DragItem(item) end
                 end
             end
-            wait(30)
+            task.wait(30)
         end
     end
 
@@ -563,7 +598,7 @@ end)
             for _, item in pairs(workspace.Items:GetChildren()) do
                 if (item.Name == "Ore" or item.Name == "Coal") and item:IsA("Model") and item.PrimaryPart then DragItem(item) end
             end
-            wait(10)
+            task.wait(10)
         end
     end
 
@@ -574,10 +609,10 @@ end)
             for _, enemy in pairs(workspace.Characters:GetChildren()) do
                 if enemy:IsA("Model") and enemy.PrimaryPart and enemy.Name ~= "Pelt Trader" then
                     hrp.CFrame = CFrame.new(enemy.PrimaryPart.Position + Vector3.new(0, 5, 0))
-                    wait(2)
+                    task.wait(2)
                 end
             end
-            wait(5)
+            task.wait(5)
         end
     end
 
@@ -588,10 +623,10 @@ end)
             for _, tree in pairs(workspace.Map.Foliage:GetChildren()) do
                 if tree:IsA("Model") and tree.PrimaryPart then
                     hrp.CFrame = CFrame.new(tree.PrimaryPart.Position + Vector3.new(0, 5, 0))
-                    wait(2)
+                    task.wait(2)
                 end
             end
-            wait(5)
+            task.wait(5)
         end
     end
 
@@ -607,13 +642,13 @@ end)
                         if tree:IsA("Model") and tree.Name == treeName and tree.PrimaryPart then
                             local distance = (tree.PrimaryPart.Position - hrp.Position).Magnitude
                             if distance <= DistanceForTreeAura then
-                                RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(tree, weapon, 999, hrp.CFrame)
+                                pcall(function() RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(tree, weapon, 999, hrp.CFrame) end)
                             end
                         end
                     end
                 end
             end
-            wait(0.5)
+            task.wait(0.5)
         end
     end
 
@@ -627,11 +662,11 @@ end)
                     local angle = (2 * math.pi * i) / SaplingAmount
                     local offset = (SaplingShape == "Circle") and Vector3.new(math.cos(angle) * DistanceForSaplingPlace, 0, math.sin(angle) * DistanceForSaplingPlace) or Vector3.new((i % 5 - 2.5) * DistanceForSaplingPlace, 0, math.floor(i / 5 - 2.5) * DistanceForSaplingPlace)
                     local plantPos = hrp.Position + offset
-                    RepStorage.RemoteEvents.PlantSapling:FireServer(plantPos, seedBox)
-                    wait(1)
+                    pcall(function() RepStorage.RemoteEvents.PlantSapling:FireServer(plantPos, seedBox) end)
+                    task.wait(1)
                 end
             end
-            wait(10)
+            task.wait(10)
         end
     end
 
@@ -646,14 +681,14 @@ end)
                         local distance = (animal.PrimaryPart.Position - hrp.Position).Magnitude
                         if distance <= DistanceForPetTame and not activeTamingAnimals[animal] then
                             activeTamingAnimals[animal] = true
-                            RepStorage.RemoteEvents.StartTaming:FireServer(animal, flute)
-                            wait(30)
+                            pcall(function() RepStorage.RemoteEvents.StartTaming:FireServer(animal, flute) end)
+                            task.wait(30)
                             local food = petTamingFoodMap[animal.Name]
                             local foodItem = player.Backpack:FindFirstChild(food)
                             if foodItem then
                                 for _ = 1, 5 do
-                                    RepStorage.RemoteEvents.FeedAnimal:FireServer(animal, foodItem)
-                                    wait(2)
+                                    pcall(function() RepStorage.RemoteEvents.FeedAnimal:FireServer(animal, foodItem) end)
+                                    task.wait(2)
                                 end
                             end
                             activeTamingAnimals[animal] = nil
@@ -661,7 +696,7 @@ end)
                     end
                 end
             end
-            wait(5)
+            task.wait(5)
         end
     end
 
@@ -673,7 +708,7 @@ end)
                     mob.Humanoid.JumpPower = 0
                 end
             end
-            wait(1)
+            task.wait(1)
         end
     end
 
@@ -683,12 +718,12 @@ end)
             if flute then
                 for _, animal in pairs(workspace.Characters:GetChildren()) do
                     if animal:IsA("Model") and animal.PrimaryPart and (animal.Name == "Bunny" or animal.Name == "Wolf") then
-                        RepStorage.RemoteEvents.StartTaming:FireServer(animal, flute)
-                        wait(30)
+                        pcall(function() RepStorage.RemoteEvents.StartTaming:FireServer(animal, flute) end)
+                        task.wait(30)
                     end
                 end
             end
-            wait(10)
+            task.wait(10)
         end
     end
 
@@ -697,10 +732,10 @@ end)
             for _, animal in pairs(workspace.Characters:GetChildren()) do
                 if animal:IsA("Model") and animal:FindFirstChild("TamingProgress") and animal.TamingProgress.Value > 0 then
                     local food = player.Backpack:FindFirstChild(petTamingFoodMap[animal.Name])
-                    if food then RepStorage.RemoteEvents.FeedAnimal:FireServer(animal, food) end
+                    if food then pcall(function() RepStorage.RemoteEvents.FeedAnimal:FireServer(animal, food) end) end
                 end
             end
-            wait(5)
+            task.wait(5)
         end
     end
 
@@ -711,7 +746,7 @@ end)
                     part.Size = part.Size + Vector3.new(2, 2, 2)
                 end
             end
-            wait(1)
+            task.wait(1)
         end
     end
 
@@ -722,7 +757,7 @@ end)
                     part.Transparency = 0.3
                 end
             end
-            wait(1)
+            task.wait(1)
         end
     end
 
@@ -730,40 +765,39 @@ end)
         while ActiveAutoEatStew do
             local stew = player.Backpack:FindFirstChild("Stew")
             if stew and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health < 80 then
-                RepStorage.RemoteEvents.ConsumeItem:FireServer(stew)
+                pcall(function() RepStorage.RemoteEvents.ConsumeItem:FireServer(stew) end)
             end
-            wait(20)
+            task.wait(20)
         end
     end
 
     local function antiAfk()
         while ActiveAntiAfk do
             local vu = game:GetService("VirtualUser")
-            vu:CaptureController()
-            vu:ClickButton2(Vector2.new())
-            wait(30)
+            pcall(function() vu:CaptureController() vu:ClickButton2(Vector2.new()) end)
+            task.wait(30)
         end
     end
 
     local function autoTimeMachine()
         while ActiveAutoTimeMachine do
-            RepStorage.RemoteEvents.SkipNight:FireServer()
-            wait(60)
+            pcall(function() RepStorage.RemoteEvents.SkipNight:FireServer() end)
+            task.wait(60)
         end
     end
 
     local function autoCast()
         while ActiveAutoCast do
             local castItem = player.Backpack:FindFirstChild("MagicWand")
-            if castItem then RepStorage.RemoteEvents.CastSpell:FireServer(castItem, mouse.Hit.Position) end
-            wait(5)
+            if castItem then pcall(function() RepStorage.RemoteEvents.CastSpell:FireServer(castItem, mouse.Hit.Position) end) end
+            task.wait(5)
         end
     end
 
     local function autoMinigames()
         while ActiveAutoMinigames do
-            RepStorage.RemoteEvents.CompleteMinigame:FireServer("Fishing")
-            wait(10)
+            pcall(function() RepStorage.RemoteEvents.CompleteMinigame:FireServer("Fishing") end)
+            task.wait(10)
         end
     end
 
@@ -773,15 +807,15 @@ end)
                 player.Character.Humanoid.MaxHealth = 200
                 player.Character.Humanoid.Health = 200
             end
-            wait(0.1)
+            task.wait(0.1)
         end
     end
 
     local function betterAutoCast()
         while ActiveBetterAutoCast do
             local castItem = player.Backpack:FindFirstChild("MagicWand")
-            if castItem then RepStorage.RemoteEvents.CastSpell:FireServer(castItem, CFrame.new(mouse.Hit.Position)) end
-            wait(3)
+            if castItem then pcall(function() RepStorage.RemoteEvents.CastSpell:FireServer(castItem, CFrame.new(mouse.Hit.Position)) end) end
+            task.wait(3)
         end
     end
 
@@ -790,7 +824,7 @@ end)
             if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
                 player.Character.HumanoidRootPart.Position = player.Character.HumanoidRootPart.Position + Vector3.new(0, HipHeightValue, 0)
             end
-            wait(0.5)
+            task.wait(0.5)
         end
     end
 
@@ -803,11 +837,11 @@ end)
                 for _, tree in pairs(workspace.Map.SnowyArea:GetChildren()) do
                     if tree.Name == "SmallTree" and tree:IsA("Model") and tree.PrimaryPart then
                         local distance = (tree.PrimaryPart.Position - hrp.Position).Magnitude
-                        if distance <= 30 then RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(tree, weapon, 999, hrp.CFrame) end
+                        if distance <= 30 then pcall(function() RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(tree, weapon, 999, hrp.CFrame) end) end
                     end
                 end
             end
-            wait(0.5)
+            task.wait(0.5)
         end
     end
 
@@ -815,10 +849,10 @@ end)
         while ActiveInstaOpenChest do
             for _, chest in pairs(workspace.Chests:GetChildren()) do
                 if chest:IsA("Model") and chest:FindFirstChild("ProximityPrompt") then
-                    fireproximityprompt(chest.ProximityPrompt)
+                    pcall(function() fireproximityprompt(chest.ProximityPrompt) end)
                 end
             end
-            wait(1)
+            task.wait(1)
         end
     end
 
@@ -841,7 +875,7 @@ end)
             if player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health < 20 then
                 player.Character.HumanoidRootPart.CFrame = CFrame.new(safeZonePos)
             end
-            wait(0.5)
+            task.wait(0.5)
         end
     end
 
@@ -850,7 +884,7 @@ end)
             for _, item in pairs(workspace.Items:GetChildren()) do
                 if item.Name == "Candle" and item:IsA("Model") and item.PrimaryPart then DragItem(item) end
             end
-            wait(5)
+            task.wait(5)
         end
     end
 
@@ -858,11 +892,11 @@ end)
         while ActiveOpenChestsForCandles do
             for _, chest in pairs(workspace.Chests:GetChildren()) do
                 if chest:IsA("Model") and chest:FindFirstChild("ProximityPrompt") then
-                    fireproximityprompt(chest.ProximityPrompt)
-                    wait(0.5)
+                    pcall(function() fireproximityprompt(chest.ProximityPrompt) end)
+                    task.wait(0.5)
                 end
             end
-            wait(10)
+            task.wait(10)
         end
     end
 
@@ -872,12 +906,12 @@ end)
             if candle then
                 for _, house in pairs(workspace.Houses:GetChildren()) do
                     if house:IsA("Model") and house:FindFirstChild("LightPoint") and not house.LightPoint.Value then
-                        RepStorage.RemoteEvents.LightHouse:FireServer(house, candle)
-                        wait(1)
+                        pcall(function() RepStorage.RemoteEvents.LightHouse:FireServer(house, candle) end)
+                        task.wait(1)
                     end
                 end
             end
-            wait(15)
+            task.wait(15)
         end
     end
 
@@ -899,7 +933,7 @@ end)
             for _, item in pairs(workspace.Items:GetChildren()) do
                 if item.Name == "Candy" and item:IsA("Model") and item.PrimaryPart then DragItem(item) end
             end
-            wait(5)
+            task.wait(5)
         end
     end
 
@@ -907,11 +941,11 @@ end)
         while ActiveLootHouses do
             for _, house in pairs(workspace.Houses:GetChildren()) do
                 if house:IsA("Model") and house:FindFirstChild("ProximityPrompt") then
-                    fireproximityprompt(house.ProximityPrompt)
-                    wait(2)
+                    pcall(function() fireproximityprompt(house.ProximityPrompt) end)
+                    task.wait(2)
                 end
             end
-            wait(15)
+            task.wait(15)
         end
     end
 
@@ -921,12 +955,12 @@ end)
             if repairKit then
                 for _, tool in pairs(player.Backpack:GetChildren()) do
                     if tool:IsA("Tool") and tool:FindFirstChild("Durability") and tool.Durability.Value < tool.Durability.MaxValue then
-                        RepStorage.RemoteEvents.RepairTool:FireServer(tool, repairKit)
-                        wait(1)
+                        pcall(function() RepStorage.RemoteEvents.RepairTool:FireServer(tool, repairKit) end)
+                        task.wait(1)
                     end
                 end
             end
-            wait(10)
+            task.wait(10)
         end
     end
 
@@ -936,12 +970,12 @@ end)
             if upgradeStone then
                 for _, tool in pairs(player.Backpack:GetChildren()) do
                     if tool:IsA("Tool") and tool:FindFirstChild("Level") and tool.Level.Value < 5 then
-                        RepStorage.RemoteEvents.UpgradeTool:FireServer(tool, upgradeStone)
-                        wait(1)
+                        pcall(function() RepStorage.RemoteEvents.UpgradeTool:FireServer(tool, upgradeStone) end)
+                        task.wait(1)
                     end
                 end
             end
-            wait(10)
+            task.wait(10)
         end
     end
 
@@ -951,12 +985,12 @@ end)
             if wood then
                 for _, blueprint in pairs(workspace.Blueprints:GetChildren()) do
                     if blueprint:IsA("Model") and blueprint:FindFirstChild("ProximityPrompt") then
-                        RepStorage.RemoteEvents.BuildStructure:FireServer(blueprint, wood)
-                        wait(2)
+                        pcall(function() RepStorage.RemoteEvents.BuildStructure:FireServer(blueprint, wood) end)
+                        task.wait(2)
                     end
                 end
             end
-            wait(15)
+            task.wait(15)
         end
     end
 
@@ -964,10 +998,10 @@ end)
         while ActiveAutoFish do
             local fishingRod = player.Backpack:FindFirstChild("Fishing Rod")
             if fishingRod then
-                RepStorage.RemoteEvents.StartFishing:FireServer(fishingRod, mouse.Hit.Position)
-                wait(10)
+                pcall(function() RepStorage.RemoteEvents.StartFishing:FireServer(fishingRod, mouse.Hit.Position) end)
+                task.wait(10)
             end
-            wait(15)
+            task.wait(15)
         end
     end
 
@@ -980,11 +1014,11 @@ end)
                 for _, animal in pairs(workspace.Characters:GetChildren()) do
                     if animal:IsA("Model") and animal.PrimaryPart and (animal.Name == "Deer" or animal.Name == "Boar") then
                         local distance = (animal.PrimaryPart.Position - hrp.Position).Magnitude
-                        if distance <= 20 then RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(animal, weapon, 999, hrp.CFrame) end
+                        if distance <= 20 then pcall(function() RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(animal, weapon, 999, hrp.CFrame) end) end
                     end
                 end
             end
-            wait(1)
+            task.wait(1)
         end
     end
 
@@ -1005,12 +1039,12 @@ end)
                         end
                     end
                     if hasMaterials then
-                        RepStorage.RemoteEvents.CraftItem:FireServer(workbench, recipe.name, recipe.materials)
-                        wait(2)
+                        pcall(function() RepStorage.RemoteEvents.CraftItem:FireServer(workbench, recipe.name, recipe.materials) end)
+                        task.wait(2)
                     end
                 end
             end
-            wait(20)
+            task.wait(20)
         end
     end
 
@@ -1075,7 +1109,7 @@ end)
                         })
                     end
                     NOFLY()
-                    wait()
+                    task.wait()
                     sFLY()
                 end
             elseif not Value and FLYING then
@@ -1096,7 +1130,7 @@ end)
                         MobileFly()
                     else
                         NOFLY()
-                        wait()
+                        task.wait()
                         sFLY()
                     end
                 else
@@ -1122,7 +1156,7 @@ end)
                         if part:IsA("BasePart") and part.CanCollide then part.CanCollide = false end
                     end
                 end
-                wait(0.1)
+                task.wait(0.1)
             end
             if player.Character then
                 for _, part in pairs(player.Character:GetDescendants()) do
@@ -1145,12 +1179,12 @@ end)
                         local humanoid = player.Character:FindFirstChildOfClass('Humanoid')
                         if humanoid then
                             humanoid:ChangeState('Jumping')
-                            wait()
+                            task.wait()
                             humanoid:ChangeState('Seated')
                         end
                     end
                 end)
-                wait(0.1)
+                task.wait(0.1)
             end
         end
     })
@@ -1185,7 +1219,7 @@ end)
             ActiveNoFog = Value
             while ActiveNoFog do
                 Lighting.FogEnd = 9999
-                wait(0.1)
+                task.wait(0.1)
             end
             Lighting.FogEnd = 100
         end
@@ -1235,7 +1269,9 @@ end)
         Title = "Teleport to Campfire",
         Desc = "Teleport to main campfire",
         Callback = function()
-            player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.Campground.MainFire.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+            if player.Character and player.Character:WaitForChild("HumanoidRootPart") and workspace.Map.Campground.MainFire and workspace.Map.Campground.MainFire.PrimaryPart then
+                player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.Campground.MainFire.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+            end
         end
     })
 
@@ -1253,7 +1289,7 @@ end)
                         CreateEsp(obj, Color3.fromRGB(255, 255, 0), obj.Name, obj.PrimaryPart, 2)
                     end
                 end
-                wait(0.1)
+                task.wait(0.1)
             end
             for _, obj in pairs(workspace.Items:GetChildren()) do
                 if obj:IsA("Model") and obj.PrimaryPart and obj:FindFirstChildOfClass("Highlight") then
@@ -1275,7 +1311,7 @@ end)
                         CreateEsp(obj, Color3.fromRGB(255, 0, 0), obj.Name, obj.PrimaryPart, 2)
                     end
                 end
-                wait(0.1)
+                task.wait(0.1)
             end
             for _, obj in pairs(workspace.Characters:GetChildren()) do
                 if obj:IsA("Model") and obj.PrimaryPart and not (obj.Name == "Lost Child" or obj.Name == "Pelt Trader") and obj:FindFirstChildOfClass("Highlight") then
@@ -1297,7 +1333,7 @@ end)
                         CreateEsp(obj, Color3.fromRGB(0, 255, 0), obj.Name, obj.PrimaryPart, 2)
                     end
                 end
-                wait(0.1)
+                task.wait(0.1)
             end
             for _, obj in pairs(workspace.Characters:GetChildren()) do
                 if obj:IsA("Model") and obj.PrimaryPart and obj.Name == "Lost Child" and obj:FindFirstChildOfClass("Highlight") then
@@ -1319,7 +1355,7 @@ end)
                         CreateEsp(obj, Color3.fromRGB(0, 255, 255), obj.Name, obj.PrimaryPart, 2)
                     end
                 end
-                wait(0.1)
+                task.wait(0.1)
             end
             for _, obj in pairs(workspace.Characters:GetChildren()) do
                 if obj:IsA("Model") and obj.PrimaryPart and obj.Name == "Pelt Trader" and obj:FindFirstChildOfClass("Highlight") then
@@ -1360,11 +1396,11 @@ end)
                     if enemy:IsA("Model") and enemy.PrimaryPart and enemy.Name ~= "Pelt Trader" then
                         local distance = (enemy.PrimaryPart.Position - hrp.Position).Magnitude
                         if distance <= DistanceForKillAura then
-                            RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(enemy, weapon, 999, hrp.CFrame)
+                            pcall(function() RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(enemy, weapon, 999, hrp.CFrame) end)
                         end
                     end
                 end
-                wait(0.01)
+                task.wait(0.01)
             end
         end
     })
@@ -1394,11 +1430,11 @@ end)
                     if tree:IsA("Model") and (tree.Name == "Small Tree" or tree.Name == "TreeBig1" or tree.Name == "TreeBig2") and tree.PrimaryPart then
                         local distance = (tree.PrimaryPart.Position - hrp.Position).Magnitude
                         if distance <= DistanceForAutoChopTree then
-                            RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(tree, weapon, 999, hrp.CFrame)
+                            pcall(function() RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(tree, weapon, 999, hrp.CFrame) end)
                         end
                     end
                 end
-                wait(0.01)
+                task.wait(0.01)
             end
         end
     })
@@ -1651,56 +1687,30 @@ end)
         end
     })
     BringItem:Button({
-        Title = "Bring Frog Key",
-        Desc = "Bring Frog Key (spawns after killing frogs)",
+        Title = "Bring All Table",
+        Desc = "Bring all tables to you",
         Callback = function()
-            for _, obj in pairs(workspace.Characters:GetChildren()) do
-                if obj.Name == "Frog" and obj:IsA("Model") and obj.PrimaryPart then
-                    RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(obj, player.Backpack:FindFirstChild("Old Axe") or player.Backpack:FindFirstChild("Good Axe"), 999, player.Character.HumanoidRootPart.CFrame)
-                    wait(1)
-                    local key = workspace.Items:FindFirstChild("Frog Key")
-                    if key and key:IsA("Model") and key.PrimaryPart then DragItem(key) end
-                end
+            for _, obj in pairs(workspace.Items:GetChildren()) do
+                if obj.Name == "Table" and obj:IsA("Model") and obj.PrimaryPart then DragItem(obj) end
             end
         end
     })
     BringItem:Button({
-        Title = "Bring Candles",
-        Desc = "Bring all candles to you",
+        Title = "Bring All Bed",
+        Desc = "Bring all beds to you",
         Callback = function()
             for _, obj in pairs(workspace.Items:GetChildren()) do
-                if obj.Name == "Candle" and obj:IsA("Model") and obj.PrimaryPart then DragItem(obj) end
+                if obj.Name == "Bed" and obj:IsA("Model") and obj.PrimaryPart then DragItem(obj) end
             end
         end
     })
 
-    Automation:Section({ Title = "Advanced Automation" })
-    local PetTameSlider = Automation:Slider({
-        Title = "Auto Tame Pet Distance",
-        Desc = "Set distance for auto taming pets",
-        Range = {Min = 5, Max = 50, Increment = 1},
-        CurrentValue = 15,
-        Suffix = "Distance",
-        Save = true,
-        Callback = function(Value)
-            DistanceForPetTame = Value
-        end
-    })
-    Automation:Toggle({
-        Title = "Auto Tame Pet",
-        Desc = "Automatically tame nearby animals with correct food",
-        Default = false,
-        Save = true,
-        Callback = function(Value)
-            ActiveAutoTamePet = Value
-            autoTamePet()
-        end
-    })
+    Automation:Section({ Title = "Automation Settings" })
     Automation:Slider({
         Title = "Sapling Distance",
-        Desc = "Set distance for auto planting saplings",
-        Range = {Min = 5, Max = 30, Increment = 5},
-                CurrentValue = 20,
+        Desc = "Set distance for sapling placement",
+        Range = {Min = 5, Max = 50, Increment = 1},
+        CurrentValue = 20,
         Suffix = "Distance",
         Save = true,
         Callback = function(Value)
@@ -1735,6 +1745,16 @@ end)
         Callback = function(Value)
             ActiveAutoPlaceSapling = Value
             autoPlantSaplings()
+        end
+    })
+    Automation:Toggle({
+        Title = "Auto Tame Pet",
+        Desc = "Automatically tame nearby pets",
+        Default = false,
+        Save = true,
+        Callback = function(Value)
+            ActiveAutoTamePet = Value
+            autoTamePet()
         end
     })
     Automation:Toggle({
@@ -1963,21 +1983,27 @@ end)
         Title = "Teleport to Campfire",
         Desc = "Teleport to main campfire",
         Callback = function()
-            player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.Campground.MainFire.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+            if player.Character and player.Character:WaitForChild("HumanoidRootPart") and workspace.Map.Campground.MainFire and workspace.Map.Campground.MainFire.PrimaryPart then
+                player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.Campground.MainFire.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+            end
         end
     })
     Teleport:Button({
         Title = "Teleport to Snowy Area",
         Desc = "Teleport to snowy area",
         Callback = function()
-            player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.SnowyArea.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+            if player.Character and player.Character:WaitForChild("HumanoidRootPart") and workspace.Map.SnowyArea and workspace.Map.SnowyArea.PrimaryPart then
+                player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.SnowyArea.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+            end
         end
     })
     Teleport:Button({
         Title = "Teleport to Forest",
         Desc = "Teleport to forest area",
         Callback = function()
-            player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.Forest.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+            if player.Character and player.Character:WaitForChild("HumanoidRootPart") and workspace.Map.Forest and workspace.Map.Forest.PrimaryPart then
+                player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.Forest.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+            end
         end
     })
 
@@ -2103,7 +2129,7 @@ end)
                 Title = "Info",
                 Content = "PlaceId: " .. info.PlaceId .. "\nJobId: " .. info.JobId .. "\nPlayers: " .. info.CurrentPlayers .. "/" .. info.MaxPlayers .. "\nStudio: " .. tostring(info.IsStudio)
             })
-            wait(5)
+            task.wait(5)
         end
     end)
 
@@ -2111,7 +2137,7 @@ end)
     spawn(function()
         while true do
             updateHouseStats()
-            wait(10)
+            task.wait(10)
         end
     end)
 end
