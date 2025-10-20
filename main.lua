@@ -171,6 +171,13 @@ local ActiveCreateSafeZone = false
 local ActiveTpToSafeZoneLowHP = false
 local SaplingAmount = 10
 local SaplingShape = "Circle"
+local ActiveAutoCollectCandles = false
+local ActiveOpenChestsForCandles = false
+local ActiveLightHouses = false
+local ActiveCollectCandies = false
+local ActiveLootHouses = false
+local HouseStats = {loaded = 0, missing = 0, lighted = 0}
+local CandleCount = 0
 
 local petTamingFoodMap = {
     ["Bunny"] = "Carrot",
@@ -183,7 +190,7 @@ local activeTamingAnimals = {}
 local safeZonePos = workspace.Map.Campground.MainFire.PrimaryPart.Position + Vector3.new(0, 5, 0)
 
 -- Ensure Window is fully initialized before creating tabs
-task.wait(0.1) -- Small delay to ensure UI rendering
+task.wait(0.5) -- Increased delay to ensure UI rendering
 local Info = Window:Tab({ Title = "Info", Icon = "info" })
 local Player = Window:Tab({ Title = "Player", Icon = "user" })
 local Esp = Window:Tab({ Title = "ESP", Icon = "eye" })
@@ -194,12 +201,18 @@ local Teleport = Window:Tab({ Title = "Teleport", Icon = "scan-barcode" })
 local Discord = Window:Tab({ Title = "Discord", Icon = "badge-alert" })
 local Config = Window:Tab({ Title = "Config", Icon = "file-cog" })
 
+-- Fallback if tabs fail to load
 if not (Info and Player and Esp and Game and BringItem and Automation and Teleport and Discord and Config) then
-    warn("One or more tabs failed to initialize. Attempting to reinitialize...")
+    WindUI:Notify({
+        Title = "UI Error",
+        Content = "Tabs failed to load. Restarting UI...",
+        Duration = 5
+    })
+    Window:Destroy()
     Window = WindUI:CreateWindow({
         Title = "99 Night In The Forest | Beta",
         Icon = "rbxassetid://84501312005643",
-        Author = "99 Night In The Forest | " .. version,
+        Author = "99 Night in the Forest | " .. version,
         Folder = "RyzenHub_NITF",
         Size = UDim2.fromOffset(400, 300),
         Transparent = true,
@@ -214,10 +227,6 @@ if not (Info and Player and Esp and Game and BringItem and Automation and Telepo
     Teleport = Window:Tab({ Title = "Teleport", Icon = "scan-barcode" })
     Discord = Window:Tab({ Title = "Discord", Icon = "badge-alert" })
     Config = Window:Tab({ Title = "Config", Icon = "file-cog" })
-    if not (Info and Player and Esp and Game and BringItem and Automation and Teleport and Discord and Config) then
-        error("Tab initialization failed. Script cannot proceed.")
-        return
-    end
 end
 
 local function DragItem(Item)
@@ -369,6 +378,7 @@ local function MobileFly()
     local bv = Instance.new("BodyVelocity")
     bv.Name = velocityHandlerName
     bv.Parent = root
+        bv.Parent = root
     bv.MaxForce = v3zero
     bv.Velocity = v3zero
 
@@ -928,6 +938,212 @@ local function tpToSafeZoneLowHP()
     end)
 end
 
+local function autoCollectCandles()
+    task.spawn(function()
+        while ActiveAutoCollectCandles do
+            for _, item in pairs(workspace.Items:GetChildren()) do
+                if item.Name == "Candle" and item:IsA("Model") and item.PrimaryPart then
+                    DragItem(item)
+                end
+            end
+            wait(5)
+        end
+    end)
+end
+
+local function openChestsForCandles()
+    task.spawn(function()
+        while ActiveOpenChestsForCandles do
+            for _, chest in pairs(workspace.Chests:GetChildren()) do
+                if chest:IsA("Model") and chest:FindFirstChild("ProximityPrompt") then
+                    fireproximityprompt(chest.ProximityPrompt)
+                    wait(0.5) -- Avoid spamming
+                end
+            end
+            wait(10)
+        end
+    end)
+end
+
+local function lightHouses()
+    task.spawn(function()
+        while ActiveLightHouses do
+            local candle = player.Inventory:FindFirstChild("Candle")
+            if candle then
+                for _, house in pairs(workspace.Houses:GetChildren()) do
+                    if house:IsA("Model") and house:FindFirstChild("LightPoint") and not house.LightPoint.Value then
+                        RepStorage.RemoteEvents.LightHouse:FireServer(house, candle)
+                        wait(1)
+                    end
+                end
+            end
+            wait(15)
+        end
+    end)
+end
+
+local function updateHouseStats()
+    HouseStats.loaded = 0
+    HouseStats.missing = 0
+    HouseStats.lighted = 0
+    for _, house in pairs(workspace.Houses:GetChildren()) do
+        if house:IsA("Model") then
+            HouseStats.loaded = HouseStats.loaded + 1
+            if house:FindFirstChild("LightPoint") and house.LightPoint.Value then
+                HouseStats.lighted = HouseStats.lighted + 1
+            end
+        end
+    end
+    HouseStats.missing = #workspace.Houses:GetChildren() - HouseStats.loaded
+end
+
+local function autoCollectCandies()
+    task.spawn(function()
+        while ActiveCollectCandies do
+            for _, item in pairs(workspace.Items:GetChildren()) do
+                if item.Name == "Candy" and item:IsA("Model") and item.PrimaryPart then
+                    DragItem(item)
+                end
+            end
+            wait(5)
+        end
+    end)
+end
+
+local function autoLootHouses()
+    task.spawn(function()
+        while ActiveLootHouses do
+            for _, house in pairs(workspace.Houses:GetChildren()) do
+                if house:IsA("Model") and house:FindFirstChild("ProximityPrompt") then
+                    fireproximityprompt(house.ProximityPrompt)
+                    wait(2) -- Simulate looting delay
+                end
+            end
+            wait(15)
+        end
+    end)
+end
+
+local function autoRepairTools()
+    task.spawn(function()
+        while true do
+            if not ActiveAutoRepairTools then break end
+            local repairKit = player.Inventory:FindFirstChild("Repair Kit")
+            if repairKit then
+                for _, tool in pairs(player.Inventory:GetChildren()) do
+                    if tool:IsA("Model") and tool:FindFirstChild("Durability") and tool.Durability.Value < tool.Durability.MaxValue then
+                        RepStorage.RemoteEvents.RepairTool:FireServer(tool, repairKit)
+                        wait(1)
+                    end
+                end
+            end
+            wait(10)
+        end
+    end)
+end
+
+local function autoUpgradeTools()
+    task.spawn(function()
+        while true do
+            if not ActiveAutoUpgradeTools then break end
+            local upgradeStone = player.Inventory:FindFirstChild("Upgrade Stone")
+            if upgradeStone then
+                for _, tool in pairs(player.Inventory:GetChildren()) do
+                    if tool:IsA("Model") and tool:FindFirstChild("Level") and tool.Level.Value < 5 then
+                        RepStorage.RemoteEvents.UpgradeTool:FireServer(tool, upgradeStone)
+                        wait(1)
+                    end
+                end
+            end
+            wait(10)
+        end
+    end)
+end
+
+local function autoBuildStructures()
+    task.spawn(function()
+        while true do
+            if not ActiveAutoBuildStructures then break end
+            local wood = player.Inventory:FindFirstChild("Log")
+            if wood then
+                for _, blueprint in pairs(workspace.Blueprints:GetChildren()) do
+                    if blueprint:IsA("Model") and blueprint:FindFirstChild("ProximityPrompt") then
+                        RepStorage.RemoteEvents.BuildStructure:FireServer(blueprint, wood)
+                        wait(2)
+                    end
+                end
+            end
+            wait(15)
+        end
+    end)
+end
+
+local function autoFish()
+    task.spawn(function()
+        while true do
+            if not ActiveAutoFish then break end
+            local fishingRod = player.Inventory:FindFirstChild("Fishing Rod")
+            if fishingRod then
+                RepStorage.RemoteEvents.StartFishing:FireServer(fishingRod, IYMouse.Hit.Position)
+                wait(10) -- Simulate fishing duration
+            end
+            wait(15)
+        end
+    end)
+end
+
+local function autoHuntAnimals()
+    task.spawn(function()
+        while true do
+            if not ActiveAutoHuntAnimals then break end
+            local weapon = player.Inventory:FindFirstChild("Old Axe") or player.Inventory:FindFirstChild("Good Axe") or player.Inventory:FindFirstChild("Strong Axe") or player.Inventory:FindFirstChild("Chainsaw")
+            if weapon then
+                local character = player.Character or player.CharacterAdded:Wait()
+                local hrp = character:WaitForChild("HumanoidRootPart")
+                for _, animal in pairs(workspace.Characters:GetChildren()) do
+                    if animal:IsA("Model") and animal.PrimaryPart and (animal.Name == "Deer" or animal.Name == "Boar") then
+                        local distance = (animal.PrimaryPart.Position - hrp.Position).Magnitude
+                        if distance <= 20 then
+                            RepStorage.RemoteEvents.ToolDamageObject:InvokeServer(animal, weapon, 999, hrp.CFrame)
+                        end
+                    end
+                end
+            end
+            wait(1)
+        end
+    end)
+end
+
+local function autoCraftItems()
+    task.spawn(function()
+        while true do
+            if not ActiveAutoCraftItems then break end
+            local workbench = workspace:FindFirstChild("Workbench")
+            if workbench and workbench:FindFirstChild("ProximityPrompt") then
+                local recipes = {
+                    {name = "Arrow", materials = {"Stick", "Feather"}},
+                    {name = "Trap", materials = {"Log", "Rope"}}
+                }
+                for _, recipe in pairs(recipes) do
+                    local hasMaterials = true
+                    for _, mat in pairs(recipe.materials) do
+                        if not player.Inventory:FindFirstChild(mat) then
+                            hasMaterials = false
+                            break
+                        end
+                    end
+                    if hasMaterials then
+                        RepStorage.RemoteEvents.CraftItem:FireServer(workbench, recipe.name, recipe.materials)
+                        wait(2)
+                    end
+                end
+            end
+            wait(20)
+        end
+    end)
+end
+
+-- UI Setup
 Info:Section({ Title = "Server Info" })
 local ParagraphInfoServer = Info:Paragraph({
     Title = "Info",
@@ -1710,6 +1926,19 @@ BringItem:Button({
         end)
     end
 })
+BringItem:Button({
+    Title = "Bring Candles",
+    Desc = "Bring all candles to you",
+    Callback = function()
+        task.spawn(function()
+            for _, Obj in pairs(workspace.Items:GetChildren()) do
+                if Obj.Name == "Candle" and Obj:IsA("Model") and Obj.PrimaryPart then
+                    DragItem(Obj)
+                end
+            end
+        end)
+    end
+})
 
 Automation:Section({ Title = "Advanced Automation" })
 local PetTameSlider = Automation:Slider({
@@ -1990,6 +2219,120 @@ Automation:Toggle({
         tpToSafeZoneLowHP()
     end
 })
+Automation:Toggle({
+    Title = "Auto Collect Candles",
+    Desc = "Automatically collect candles",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveAutoCollectCandles = Value
+        autoCollectCandles()
+    end
+})
+Automation:Toggle({
+    Title = "Open Chests for Candles",
+    Desc = "Automatically open chests to get candles",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveOpenChestsForCandles = Value
+        openChestsForCandles()
+    end
+})
+Automation:Toggle({
+    Title = "Light Houses",
+    Desc = "Use candles to light houses",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveLightHouses = Value
+        lightHouses()
+    end
+})
+Automation:Paragraph({
+    Title = "House Statistics",
+    Content = "Loaded: 0 | Missing: 0 | Lighted: 0"
+})
+Automation:Toggle({
+    Title = "Auto Collect Candies",
+    Desc = "Automatically collect candies",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveCollectCandies = Value
+        autoCollectCandies()
+    end
+})
+Automation:Toggle({
+    Title = "Auto Loot Houses",
+    Desc = "Automatically loot houses (Trick or Treat)",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveLootHouses = Value
+        autoLootHouses()
+    end
+})
+Automation:Toggle({
+    Title = "Auto Repair Tools",
+    Desc = "Automatically repair tools to max durability",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveAutoRepairTools = Value
+        autoRepairTools()
+    end
+})
+Automation:Toggle({
+    Title = "Auto Upgrade Tools",
+    Desc = "Automatically upgrade tools to higher levels",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveAutoUpgradeTools = Value
+        autoUpgradeTools()
+    end
+})
+Automation:Toggle({
+    Title = "Auto Build Structures",
+    Desc = "Automatically build structures (requires materials)",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveAutoBuildStructures = Value
+        autoBuildStructures()
+    end
+})
+Automation:Toggle({
+    Title = "Auto Fish",
+    Desc = "Automatically fish at mouse position",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveAutoFish = Value
+        autoFish()
+    end
+})
+Automation:Toggle({
+    Title = "Auto Hunt Animals",
+    Desc = "Automatically hunt nearby animals (e.g., Deer, Boar)",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveAutoHuntAnimals = Value
+        autoHuntAnimals()
+    end
+})
+Automation:Toggle({
+    Title = "Auto Craft Items",
+    Desc = "Automatically craft items at workbench",
+    Default = false,
+    Save = true,
+    Callback = function(Value)
+        ActiveAutoCraftItems = Value
+        autoCraftItems()
+    end
+})
 
 Teleport:Section({ Title = "Teleport Options" })
 Teleport:Button({
@@ -2097,5 +2440,139 @@ task.spawn(function()
     end
 end)
 
+-- Update House Statistics
+task.spawn(function()
+    while true do
+        updateHouseStats()
+        Automation:FindFirstChild("House Statistics"):Set({
+            Title = "House Statistics",
+            Content = "Loaded: " .. HouseStats.loaded .. " | Missing: " .. HouseStats.missing .. " | Lighted: " .. HouseStats.lighted
+        })
+        wait(10)
+    end
+end)
+
+-- Update Candle Count
+task.spawn(function()
+    while true do
+        CandleCount = 0
+        for _, item in pairs(player.Inventory:GetChildren()) do
+            if item.Name == "Candle" then
+                CandleCount = CandleCount + 1
+            end
+        end
+        wait(5)
+    end
+end)
+
 -- Initial UI Setup
 Window:Init()
+    bv.Parent = root
+    bv.MaxForce = Vector3.new(0, 0, 0)
+    bv.Velocity = Vector3.new(0, 0, 0)
+
+    local bg = Instance.new("BodyGyro")
+    bg.Name = gyroHandlerName
+    bg.Parent = root
+    bg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+    bg.P = 1000
+    bg.D = 50
+
+    mfly1 = player.CharacterAdded:Connect(function()
+        local newRoot = player.Character:WaitForChild("HumanoidRootPart")
+        local newBv = Instance.new("BodyVelocity")
+        newBv.Name = velocityHandlerName
+        newBv.Parent = newRoot
+        newBv.MaxForce = Vector3.new(0, 0, 0)
+        newBv.Velocity = Vector3.new(0, 0, 0)
+
+        local newBg = Instance.new("BodyGyro")
+        newBg.Name = gyroHandlerName
+        newBg.Parent = newRoot
+        newBg.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+        newBg.P = 1000
+        newBg.D = 50
+    end)
+
+    mfly2 = RunService.RenderStepped:Connect(function()
+        local currentRoot = player.Character and player.Character:FindFirstChild("HumanoidRootPart")
+        if not currentRoot then return end
+        local camera = workspace.CurrentCamera
+        if player.Character:FindFirstChildWhichIsA("Humanoid") and currentRoot:FindFirstChild(velocityHandlerName) and currentRoot:FindFirstChild(gyroHandlerName) then
+            local humanoid = player.Character:FindFirstChildWhichIsA("Humanoid")
+            local VelocityHandler = currentRoot:FindFirstChild(velocityHandlerName)
+            local GyroHandler = currentRoot:FindFirstChild(gyroHandlerName)
+
+            VelocityHandler.MaxForce = Vector3.new(9e9, 9e9, 9e9)
+            GyroHandler.MaxTorque = Vector3.new(9e9, 9e9, 9e9)
+            humanoid.PlatformStand = true
+            GyroHandler.CFrame = camera.CFrame
+            local moveVector = UserInputService:GetMovementDirection()
+            VelocityHandler.Velocity = (camera.CFrame.LookVector * moveVector.Z + camera.CFrame.RightVector * moveVector.X) * (iyflyspeed * 50)
+        end
+    end)
+end
+
+local function UnMobileFly()
+    FLYING = false
+    if mfly1 then mfly1:Disconnect() end
+    if mfly2 then mfly2:Disconnect() end
+    if player.Character then
+        local root = player.Character:FindFirstChild("HumanoidRootPart")
+        if root then
+            if root:FindFirstChild(velocityHandlerName) then root:FindFirstChild(velocityHandlerName):Destroy() end
+            if root:FindFirstChild(gyroHandlerName) then root:FindFirstChild(gyroHandlerName):Destroy() end
+        end
+        local humanoid = player.Character:FindFirstChildWhichIsA("Humanoid")
+        if humanoid then
+            humanoid.PlatformStand = false
+        end
+    end
+end
+
+-- Cleanup function for all toggles
+local function cleanup()
+    if ActivateFly then UnMobileFly() end
+    ActiveEspItems, ActiveDistanceEsp, ActiveEspEnemy, ActiveEspChildren, ActiveEspPeltTrader = false, false, false, false, false
+    ActivateFly, AlrActivatedFlyPC, ActiveNoCooldownPrompt, ActiveNoFog = false, false, false, false
+    ActiveAutoChopTree, ActiveKillAura, ActivateInfiniteJump, ActiveNoclip = false, false, false, false
+    ActiveSpeedBoost = false
+    ActiveInfHealth, ActiveFreeCamo, ActiveAutoSurviveDays, ActiveAutoCookFood = false, false, false, false
+    ActiveAutoEatFood, ActiveAutoMissingFoods, ActiveAutoBringOres, ActiveAutoTpEnemies = false, false, false, false
+    ActiveAutoTpTrees, ActiveStunMobs, ActiveAutoMinigameTaming, ActiveAutoFeedTaming = false, false, false, false
+    ActiveHitboxExpander, ActiveFullMapLoader, ActiveAutoEatStew, ActiveAntiAfk = false, false, false, false
+    ActiveAutoTimeMachine, ActiveAutoCast, ActiveAutoMinigames, ActiveAlwaysBiggerBar = false, false, false, false
+    ActiveBetterAutoCast, ActiveHipHeight, ActiveAutoFarmSnowySmallTree, ActiveInstaOpenChest = false, false, false, false
+    ActiveCreateSafeZone, ActiveTpToSafeZoneLowHP, ActiveAutoCollectCandles, ActiveOpenChestsForCandles = false, false, false, false
+    ActiveLightHouses, ActiveCollectCandies, ActiveLootHouses, ActiveAutoRepairTools = false, false, false, false
+    ActiveAutoUpgradeTools, ActiveAutoBuildStructures, ActiveAutoFish, ActiveAutoHuntAnimals = false, false, false, false
+    ActiveAutoCraftItems = false
+    if player.Character then
+        player.Character.Humanoid.WalkSpeed = OldSpeed
+    end
+    for _, obj in pairs(workspace.Items:GetDescendants()) do
+        if obj:IsA("Highlight") or obj:IsA("BillboardGui") then obj:Destroy() end
+    end
+    for _, obj in pairs(workspace.Characters:GetDescendants()) do
+        if obj:IsA("Highlight") or obj:IsA("BillboardGui") then obj:Destroy() end
+    end
+    if workspace:FindFirstChild("SafeZone") then workspace.SafeZone:Destroy() end
+end
+
+-- Handle character removal
+player.CharacterRemoving:Connect(function()
+    cleanup()
+end)
+
+-- Initialize UI and start update loops
+Window:Init()
+
+-- Ensure UI is visible and functional
+task.spawn(function()
+    while true do
+        if not Window.MainFrame.Visible then
+            Window:Init()
+        end
+        wait(1)
+    end
+end)
