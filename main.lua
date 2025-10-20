@@ -182,6 +182,8 @@ local activeTamingAnimals = {}
 
 local safeZonePos = workspace.Map.Campground.MainFire.PrimaryPart.Position + Vector3.new(0, 5, 0)
 
+-- Ensure Window is fully initialized before creating tabs
+task.wait(0.1) -- Small delay to ensure UI rendering
 local Info = Window:Tab({ Title = "Info", Icon = "info" })
 local Player = Window:Tab({ Title = "Player", Icon = "user" })
 local Esp = Window:Tab({ Title = "ESP", Icon = "eye" })
@@ -191,6 +193,32 @@ local Automation = Window:Tab({ Title = "Automation", Icon = "settings" })
 local Teleport = Window:Tab({ Title = "Teleport", Icon = "scan-barcode" })
 local Discord = Window:Tab({ Title = "Discord", Icon = "badge-alert" })
 local Config = Window:Tab({ Title = "Config", Icon = "file-cog" })
+
+if not (Info and Player and Esp and Game and BringItem and Automation and Teleport and Discord and Config) then
+    warn("One or more tabs failed to initialize. Attempting to reinitialize...")
+    Window = WindUI:CreateWindow({
+        Title = "99 Night In The Forest | Beta",
+        Icon = "rbxassetid://84501312005643",
+        Author = "99 Night In The Forest | " .. version,
+        Folder = "RyzenHub_NITF",
+        Size = UDim2.fromOffset(400, 300),
+        Transparent = true,
+        Theme = "Dark",
+    })
+    Info = Window:Tab({ Title = "Info", Icon = "info" })
+    Player = Window:Tab({ Title = "Player", Icon = "user" })
+    Esp = Window:Tab({ Title = "ESP", Icon = "eye" })
+    Game = Window:Tab({ Title = "Game", Icon = "gamepad" })
+    BringItem = Window:Tab({ Title = "Items", Icon = "package" })
+    Automation = Window:Tab({ Title = "Automation", Icon = "settings" })
+    Teleport = Window:Tab({ Title = "Teleport", Icon = "scan-barcode" })
+    Discord = Window:Tab({ Title = "Discord", Icon = "badge-alert" })
+    Config = Window:Tab({ Title = "Config", Icon = "file-cog" })
+    if not (Info and Player and Esp and Game and BringItem and Automation and Teleport and Discord and Config) then
+        error("Tab initialization failed. Script cannot proceed.")
+        return
+    end
+end
 
 local function DragItem(Item)
     task.spawn(function()
@@ -702,7 +730,7 @@ local function autoMinigameTaming()
                 for _, animal in pairs(workspace.Characters:GetChildren()) do
                     if animal:IsA("Model") and animal.PrimaryPart and (animal.Name == "Bunny" or animal.Name == "Wolf") then
                         RepStorage.RemoteEvents.StartTaming:FireServer(animal, flute)
-                        wait(30) -- Real minigame completion via server
+                        wait(30) -- Simulated minigame duration
                     end
                 end
             end
@@ -1934,7 +1962,7 @@ Automation:Toggle({
 })
 Automation:Toggle({
     Title = "Insta Open Chest",
-    Desc = "Instantly open chests",
+    Desc = "Instantly open all chests",
     Default = false,
     Save = true,
     Callback = function(Value)
@@ -1944,7 +1972,7 @@ Automation:Toggle({
 })
 Automation:Toggle({
     Title = "Create Safe Zone",
-    Desc = "Create a safe zone at campground",
+    Desc = "Create a safe zone at campfire",
     Default = false,
     Save = true,
     Callback = function(Value)
@@ -1983,19 +2011,28 @@ Teleport:Button({
     end
 })
 Teleport:Button({
+    Title = "Teleport to Forest",
+    Desc = "Teleport to forest area",
+    Callback = function()
+        task.spawn(function()
+            player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.Forest.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+        end)
+    end
+})
+Teleport:Button({
     Title = "Teleport to Desert",
     Desc = "Teleport to desert area",
     Callback = function()
         task.spawn(function()
-            player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.DesertArea.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
+            player.Character:WaitForChild("HumanoidRootPart").CFrame = workspace.Map.Desert.PrimaryPart.CFrame + Vector3.new(0, 10, 0)
         end)
     end
 })
 
 Discord:Section({ Title = "Community" })
 Discord:Button({
-    Title = "Join Discord",
-    Desc = "Join our community server",
+    Title = "Copy Discord Invite",
+    Desc = "Join our Discord server",
     Callback = function()
         setclipboard("https://discord.gg/KG9ADqwT9Q")
         game:GetService("StarterGui"):SetCore("SendNotification", {
@@ -2009,31 +2046,56 @@ Discord:Button({
 
 Config:Section({ Title = "Configuration" })
 Config:Button({
-    Title = "Reset All Settings",
-    Desc = "Reset all saved settings",
+    Title = "Save Settings",
+    Desc = "Save current configuration",
     Callback = function()
-        WindUI:ResetAll()
-        WindUI:Notify({
-            Title = "Reset",
-            Content = "All settings have been reset!",
-            Duration = 5
+        WindUI:Save()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Config Saved",
+            Text = "Settings have been saved successfully!",
+            Icon = "rbxassetid://84501312005643",
+            Duration = 4
+        })
+    end
+})
+Config:Button({
+    Title = "Load Settings",
+    Desc = "Load saved configuration",
+    Callback = function()
+        WindUI:Load()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Config Loaded",
+            Text = "Settings have been loaded successfully!",
+            Icon = "rbxassetid://84501312005643",
+            Duration = 4
+        })
+    end
+})
+Config:Button({
+    Title = "Reset Settings",
+    Desc = "Reset all settings to default",
+    Callback = function()
+        WindUI:Reset()
+        game:GetService("StarterGui"):SetCore("SendNotification", {
+            Title = "Config Reset",
+            Text = "Settings have been reset to default!",
+            Icon = "rbxassetid://84501312005643",
+            Duration = 4
         })
     end
 })
 
--- Update server info periodically
-RunService.RenderStepped:Connect(function()
-    local updatedInfo = getServerInfo()
-    local updatedContent = string.format(
-        "📌 PlaceId: %d\n📌 JobId: %s\n📌 IsStudio: %s\n📌 Players: %d/%d",
-        updatedInfo.PlaceId,
-        updatedInfo.JobId,
-        updatedInfo.IsStudio and "Yes" or "No",
-        updatedInfo.CurrentPlayers,
-        updatedInfo.MaxPlayers
-    )
-    ParagraphInfoServer:Set({
-        Title = "Info",
-        Content = updatedContent
-    })
+-- Update Server Info
+task.spawn(function()
+    while true do
+        local info = getServerInfo()
+        ParagraphInfoServer:Set({
+            Title = "Info",
+            Content = "PlaceId: " .. info.PlaceId .. "\nJobId: " .. info.JobId .. "\nIs Studio: " .. tostring(info.IsStudio) .. "\nPlayers: " .. info.CurrentPlayers .. "/" .. info.MaxPlayers
+        })
+        wait(5)
+    end
 end)
+
+-- Initial UI Setup
+Window:Init()
