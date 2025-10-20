@@ -227,7 +227,7 @@ if WindUI then
     repeat task.wait(0.1) until player.Character
 
     -- Ensure Window is fully initialized before creating tabs
-    task.wait(2.0)  -- Increased delay to ensure UI loads properly
+    task.wait(5.0) -- Increased delay to 5 seconds for better loading
     local Info = Window:Tab({ Title = "Info", Icon = "info" })
     local Player = Window:Tab({ Title = "Player", Icon = "user" })
     local Esp = Window:Tab({ Title = "ESP", Icon = "eye" })
@@ -255,7 +255,7 @@ if WindUI then
             Transparent = true,
             Theme = "Dark",
         })
-        task.wait(2.0)  -- Increased delay again
+        task.wait(5.0) -- Increased delay again to 5 seconds
         Info = Window:Tab({ Title = "Info", Icon = "info" })
         Player = Window:Tab({ Title = "Player", Icon = "user" })
         Esp = Window:Tab({ Title = "ESP", Icon = "eye" })
@@ -466,7 +466,7 @@ if WindUI then
         end
     end
 
-    local function CreateEsp(Ch, Color, Text, Parent, number)
+    local function CreateEsp(Char, Color, Text, Parent, number)
         if not Char or Char:FindFirstChild("ESP") or Char:FindFirstChildOfClass("Highlight") then return end
         local highlight = Instance.new("Highlight")
         highlight.Name = "ESP_Highlight"
