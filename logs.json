@@ -1,0 +1,18 @@
+[
+  {
+    "Title": "Version 1.2.0 - UI Update",
+    "Description": "Fixed the navigation button style bug and added smooth staggered animations for the executor panel."
+  },
+  {
+    "Title": "New API Integration",
+    "Description": "Successfully integrated Roblox Avatar API to fetch local user profile headshots dynamically."
+  },
+  {
+    "Title": "Performance Fixes",
+    "Description": "Reduced memory usage when loading external script lists and improved JSON parsing speed."
+  },
+  {
+    "Title": "Bug Fixes",
+    "Description": "Resolved an issue where the Key System would occasionally fail on slow internet connections."
+  }
+]
